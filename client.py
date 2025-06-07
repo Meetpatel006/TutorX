@@ -37,13 +37,14 @@ class TutorXClient:
                 }
             )
     
-    async def _call_tool(self, tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    async def _call_tool(self, tool_name: str, params: Dict[str, Any], method: str = "POST") -> Dict[str, Any]:
         """
         Call an MCP tool on the server
         
         Args:
             tool_name: Name of the tool to call
             params: Parameters to pass to the tool
+            method: HTTP method to use (GET or POST)
             
         Returns:
             Tool response
@@ -51,18 +52,33 @@ class TutorXClient:
         await self._ensure_session()
         try:
             url = f"{self.server_url}{API_PREFIX}/{tool_name}"
-            async with self.session.get(url, params=params, timeout=30) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    error = await response.text()
-                    return {
-                        "error": f"API error ({response.status}): {error}",
-                        "timestamp": datetime.now().isoformat()
-                    }
+            
+            # Convert params to query string for GET requests
+            if method.upper() == "GET":
+                from urllib.parse import urlencode
+                if params:
+                    query_string = urlencode(params, doseq=True)
+                    url = f"{url}?{query_string}"
+                async with self.session.get(url, timeout=30) as response:
+                    return await self._handle_response(response)
+            else:
+                async with self.session.post(url, json=params, timeout=30) as response:
+                    return await self._handle_response(response)
+                    
         except Exception as e:
             return {
                 "error": f"Failed to call tool: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    async def _handle_response(self, response) -> Dict[str, Any]:
+        """Handle the HTTP response"""
+        if response.status == 200:
+            return await response.json()
+        else:
+            error = await response.text()
+            return {
+                "error": f"API error ({response.status}): {error}",
                 "timestamp": datetime.now().isoformat()
             }
     
@@ -117,16 +133,74 @@ class TutorXClient:
     
     # ------------ Core Features ------------
     
+    async def get_concept_graph(self, concept_id: str = None, use_mcp: bool = False) -> Dict[str, Any]:
+        """
+        Get the concept graph for a specific concept or all concepts.
+        
+        Args:
+            concept_id: Optional ID of the concept to fetch. If None, returns all concepts.
+            use_mcp: If True, uses the MCP tool interface instead of direct API call.
+            
+        Returns:
+            Dict containing concept data or error information.
+        """
+        try:
+            # Ensure we have a session
+            await self._ensure_session()
+            
+            if use_mcp:
+                # Use MCP tool interface
+                print(f"[CLIENT] Using MCP tool to get concept graph for: {concept_id}")
+                return await self._call_tool("get_concept_graph", {"concept_id": concept_id} if concept_id else {})
+            
+            # Use direct API call (default)
+            url = f"{self.server_url}/api/concept_graph"
+            params = {}
+            if concept_id:
+                params["concept_id"] = concept_id
+            
+            print(f"[CLIENT] Fetching concept graph from {url} with params: {params}")
+            
+            async with self.session.get(
+                url,
+                params=params,
+                timeout=30
+            ) as response:
+                print(f"[CLIENT] Response status: {response.status}")
+                
+                if response.status == 404:
+                    error_msg = f"Concept {concept_id} not found"
+                    print(f"[CLIENT] {error_msg}")
+                    return {"error": error_msg}
+                    
+                response.raise_for_status()
+                
+                # Parse the JSON response
+                result = await response.json()
+                print(f"[CLIENT] Received response: {result}")
+                
+                return result
+                
+        except asyncio.TimeoutError:
+            error_msg = "Request timed out"
+            print(f"[CLIENT] {error_msg}")
+            return {"error": error_msg}
+            
+        except aiohttp.ClientError as e:
+            error_msg = f"HTTP client error: {str(e)}"
+            print(f"[CLIENT] {error_msg}")
+            return {"error": error_msg}
+            
+        except Exception as e:
+            error_msg = f"Unexpected error: {str(e)}"
+            print(f"[CLIENT] {error_msg}")
+            import traceback
+            traceback.print_exc()
+            return {"error": error_msg}
+        
     async def assess_skill(self, student_id: str, concept_id: str) -> Dict[str, Any]:
-        """Assess student's skill level on a specific concept"""
-        return await self._call_tool("assess_skill", {
-            "student_id": student_id,
-            "concept_id": concept_id
-        })
-    
-    async def get_concept_graph(self) -> Dict[str, Any]:
-        """Get the full knowledge concept graph"""
-        return await self._get_resource("concept-graph://")
+        """Assess a student's skill on a specific concept"""
+        return await self._call_tool("assess_skill", {"student_id": student_id, "concept_id": concept_id})
     
     async def get_learning_path(self, student_id: str) -> Dict[str, Any]:
         """Get personalized learning path for a student"""
@@ -247,11 +321,49 @@ class TutorXClient:
             "reference_sources": reference_sources
         })
     
+
+    async def get_curriculum_standards(self, country_code: str = "us") -> Dict[str, Any]:
+        """
+        Get curriculum standards for a specific country
+        
+        Args:
+            country_code: ISO country code (e.g., 'us', 'uk')
+            
+        Returns:
+            Dictionary containing curriculum standards
+        """
+        return await self._call_tool(
+            "curriculum-standards",  # Note the endpoint name matches the API route
+            {"country": country_code.lower()},  # Note the parameter name matches the API
+            method="GET"  # Use GET for this endpoint
+        )
+    
     async def close(self):
         """Close the aiohttp session"""
         if self.session:
             await self.session.close()
             self.session = None
+
+    async def generate_lesson(self, topic: str, grade_level: int, duration_minutes: int) -> Dict[str, Any]:
+        """
+        Generate a lesson plan for the given topic, grade level, and duration
+        
+        Args:
+            topic: The topic for the lesson
+            grade_level: The grade level (1-12)
+            duration_minutes: Duration of the lesson in minutes
+            
+        Returns:
+            Dictionary containing the generated lesson plan
+        """
+        return await self._call_tool(
+            "generate_lesson",
+            {
+                "topic": topic,
+                "grade_level": grade_level,
+                "duration_minutes": duration_minutes
+            }
+        )
 
 # Create a default client instance for easy import
 client = TutorXClient()

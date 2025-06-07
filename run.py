@@ -16,7 +16,7 @@ def load_module(name, path):
     spec.loader.exec_module(module)
     return module
 
-def run_mcp_server(host="127.0.0.1", port=8000, transport="streamable-http"):
+def run_mcp_server(host="0.0.0.0", port=8001, transport="http"):
     """Run the MCP server with specified configuration"""
     print(f"Starting TutorX MCP Server on {host}:{port} using {transport} transport...")
     
@@ -25,6 +25,7 @@ def run_mcp_server(host="127.0.0.1", port=8000, transport="streamable-http"):
     os.environ["MCP_PORT"] = str(port)
     os.environ["MCP_TRANSPORT"] = transport
     
+    # Import and run the main module
     main_module = load_module("main", "main.py")
     
     # Access the mcp instance and run it
@@ -41,7 +42,7 @@ def run_gradio_interface():
     
     # Run the Gradio demo
     if hasattr(app_module, "demo"):
-        app_module.demo.launch()
+        app_module.demo.launch(server_name="0.0.0.0", server_port=7860)
     else:
         print("Error: Gradio demo not found in app.py")
         sys.exit(1)
@@ -62,25 +63,30 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mode", 
         choices=["mcp", "gradio", "both"], 
-        default="mcp",
+        default="both",
         help="Run mode: 'mcp' for MCP server, 'gradio' for Gradio interface, 'both' for both"
     )
     parser.add_argument(
         "--host", 
-        default="127.0.0.1",
+        default="0.0.0.0",
         help="Host address to use"
     )
     parser.add_argument(
         "--port", 
         type=int,
-        default=8000,
-        help="Port to use"
+        default=8001,
+        help="Port to use for MCP server (default: 8001)"
+    )
+    parser.add_argument(
+        "--gradio-port", 
+        type=int,
+        default=7860,
+        help="Port to use for Gradio interface (default: 7860)"
     )
     parser.add_argument(
         "--transport",
-        choices=["stdio", "streamable-http", "sse"],
-        default="streamable-http",
-        help="Transport protocol to use"
+        default="http",
+        help="Transport protocol to use (default: http)"
     )
     
     args = parser.parse_args()
