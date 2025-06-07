@@ -5,21 +5,36 @@ for use by the Gradio interface.
 """
 
 import json
-import requests
+import aiohttp
+import asyncio
 from typing import Dict, Any, List, Optional
 import base64
 from datetime import datetime
+import os
 
-# Default MCP server URL
-MCP_SERVER_URL = "http://localhost:8000"
+# Get server configuration from environment variables with defaults
+DEFAULT_HOST = os.getenv("MCP_HOST", "127.0.0.1")
+DEFAULT_PORT = int(os.getenv("MCP_PORT", "8000"))
+DEFAULT_SERVER_URL = f"http://{DEFAULT_HOST}:{DEFAULT_PORT}"
 
 class TutorXClient:
     """Client for interacting with the TutorX MCP server"""
     
-    def __init__(self, server_url=MCP_SERVER_URL):
+    def __init__(self, server_url=DEFAULT_SERVER_URL):
         self.server_url = server_url
+        self.session = None
     
-    def _call_tool(self, tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    async def _ensure_session(self):
+        """Ensure aiohttp session exists"""
+        if self.session is None:
+            self.session = aiohttp.ClientSession(
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                }
+            )
+    
+    async def _call_tool(self, tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Call an MCP tool on the server
         
@@ -30,21 +45,22 @@ class TutorXClient:
         Returns:
             Tool response
         """
+        await self._ensure_session()
         try:
-            response = requests.post(
-                f"{self.server_url}/tools/{tool_name}",
+            async with self.session.post(
+                f"{self.server_url}/mcp/tools/{tool_name}",
                 json=params,
-                headers={"Content-Type": "application/json"}
-            )
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
+                timeout=30
+            ) as response:
+                response.raise_for_status()
+                return await response.json()
+        except Exception as e:
             return {
                 "error": f"Failed to call tool: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
     
-    def _get_resource(self, resource_uri: str) -> Dict[str, Any]:
+    async def _get_resource(self, resource_uri: str) -> Dict[str, Any]:
         """
         Get an MCP resource from the server
         
@@ -54,72 +70,90 @@ class TutorXClient:
         Returns:
             Resource data
         """
+        await self._ensure_session()
         try:
-            response = requests.get(
-                f"{self.server_url}/resources?uri={resource_uri}",
-                headers={"Accept": "application/json"}
-            )
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
+            async with self.session.get(
+                f"{self.server_url}/mcp/resources?uri={resource_uri}",
+                timeout=30
+            ) as response:
+                response.raise_for_status()
+                return await response.json()
+        except Exception as e:
             return {
                 "error": f"Failed to get resource: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
     
+    async def check_server_connection(self) -> bool:
+        """
+        Check if the server is accessible
+        
+        Returns:
+            bool: True if server is accessible, False otherwise
+        """
+        await self._ensure_session()
+        try:
+            async with self.session.get(
+                f"{self.server_url}/health",
+                timeout=5
+            ) as response:
+                return response.status == 200
+        except:
+            return False
+    
     # ------------ Core Features ------------
     
-    def assess_skill(self, student_id: str, concept_id: str) -> Dict[str, Any]:
+    async def assess_skill(self, student_id: str, concept_id: str) -> Dict[str, Any]:
         """Assess student's skill level on a specific concept"""
-        return self._call_tool("assess_skill", {
+        return await self._call_tool("assess_skill", {
             "student_id": student_id,
             "concept_id": concept_id
         })
     
-    def get_concept_graph(self) -> Dict[str, Any]:
+    async def get_concept_graph(self) -> Dict[str, Any]:
         """Get the full knowledge concept graph"""
-        return self._get_resource("concept-graph://")
+        return await self._get_resource("concept-graph://")
     
-    def get_learning_path(self, student_id: str) -> Dict[str, Any]:
+    async def get_learning_path(self, student_id: str) -> Dict[str, Any]:
         """Get personalized learning path for a student"""
-        return self._get_resource(f"learning-path://{student_id}")
+        return await self._get_resource(f"learning-path://{student_id}")
     
-    def generate_quiz(self, concept_ids: List[str], difficulty: int = 2) -> Dict[str, Any]:
+    async def generate_quiz(self, concept_ids: List[str], difficulty: int = 2) -> Dict[str, Any]:
         """Generate a quiz based on specified concepts and difficulty"""
-        return self._call_tool("generate_quiz", {
+        return await self._call_tool("generate_quiz", {
             "concept_ids": concept_ids,
             "difficulty": difficulty
         })
     
-    def analyze_error_patterns(self, student_id: str, concept_id: str) -> Dict[str, Any]:
+    async def analyze_error_patterns(self, student_id: str, concept_id: str) -> Dict[str, Any]:
         """Analyze common error patterns for a student on a specific concept"""
-        return self._call_tool("analyze_error_patterns", {
+        return await self._call_tool("analyze_error_patterns", {
             "student_id": student_id,
             "concept_id": concept_id
         })
     
     # ------------ Advanced Features ------------
     
-    def analyze_cognitive_state(self, eeg_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def analyze_cognitive_state(self, eeg_data: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze EEG data to determine cognitive state"""
-        return self._call_tool("analyze_cognitive_state", {
+        return await self._call_tool("analyze_cognitive_state", {
             "eeg_data": eeg_data
         })
     
-    def get_curriculum_standards(self, country_code: str) -> Dict[str, Any]:
+    async def get_curriculum_standards(self, country_code: str) -> Dict[str, Any]:
         """Get curriculum standards for a specific country"""
-        return self._get_resource(f"curriculum-standards://{country_code}")
+        return await self._get_resource(f"curriculum-standards://{country_code}")
     
-    def align_content_to_standard(self, content_id: str, standard_id: str) -> Dict[str, Any]:
+    async def align_content_to_standard(self, content_id: str, standard_id: str) -> Dict[str, Any]:
         """Align educational content to a specific curriculum standard"""
-        return self._call_tool("align_content_to_standard", {
+        return await self._call_tool("align_content_to_standard", {
             "content_id": content_id,
             "standard_id": standard_id
         })
     
-    def generate_lesson(self, topic: str, grade_level: int, duration_minutes: int = 45) -> Dict[str, Any]:
+    async def generate_lesson(self, topic: str, grade_level: int, duration_minutes: int = 45) -> Dict[str, Any]:
         """Generate a complete lesson plan on a topic"""
-        return self._call_tool("generate_lesson", {
+        return await self._call_tool("generate_lesson", {
             "topic": topic,
             "grade_level": grade_level,
             "duration_minutes": duration_minutes
@@ -127,76 +161,83 @@ class TutorXClient:
     
     # ------------ User Experience ------------
     
-    def get_student_dashboard(self, student_id: str) -> Dict[str, Any]:
+    async def get_student_dashboard(self, student_id: str) -> Dict[str, Any]:
         """Get dashboard data for a specific student"""
-        return self._get_resource(f"student-dashboard://{student_id}")
+        return await self._get_resource(f"student-dashboard://{student_id}")
     
-    def get_accessibility_settings(self, student_id: str) -> Dict[str, Any]:
+    async def get_accessibility_settings(self, student_id: str) -> Dict[str, Any]:
         """Get accessibility settings for a student"""
-        return self._call_tool("get_accessibility_settings", {
+        return await self._call_tool("get_accessibility_settings", {
             "student_id": student_id
         })
     
-    def update_accessibility_settings(self, student_id: str, settings: Dict[str, Any]) -> Dict[str, Any]:
+    async def update_accessibility_settings(self, student_id: str, settings: Dict[str, Any]) -> Dict[str, Any]:
         """Update accessibility settings for a student"""
-        return self._call_tool("update_accessibility_settings", {
+        return await self._call_tool("update_accessibility_settings", {
             "student_id": student_id,
             "settings": settings
         })
     
     # ------------ Multi-Modal Interaction ------------
     
-    def text_interaction(self, query: str, student_id: str) -> Dict[str, Any]:
+    async def text_interaction(self, query: str, student_id: str) -> Dict[str, Any]:
         """Process a text query from the student"""
-        return self._call_tool("text_interaction", {
+        return await self._call_tool("text_interaction", {
             "query": query,
             "student_id": student_id
         })
     
-    def voice_interaction(self, audio_data_base64: str, student_id: str) -> Dict[str, Any]:
+    async def voice_interaction(self, audio_data_base64: str, student_id: str) -> Dict[str, Any]:
         """Process voice input from the student"""
-        return self._call_tool("voice_interaction", {
+        return await self._call_tool("voice_interaction", {
             "audio_data_base64": audio_data_base64,
             "student_id": student_id
         })
     
-    def handwriting_recognition(self, image_data_base64: str, student_id: str) -> Dict[str, Any]:
+    async def handwriting_recognition(self, image_data_base64: str, student_id: str) -> Dict[str, Any]:
         """Process handwritten input from the student"""
-        return self._call_tool("handwriting_recognition", {
+        return await self._call_tool("handwriting_recognition", {
             "image_data_base64": image_data_base64,
             "student_id": student_id
         })
     
     # ------------ Assessment ------------
     
-    def create_assessment(self, concept_ids: List[str], num_questions: int, difficulty: int = 3) -> Dict[str, Any]:
+    async def create_assessment(self, concept_ids: List[str], num_questions: int, difficulty: int = 3) -> Dict[str, Any]:
         """Create a complete assessment for given concepts"""
-        return self._call_tool("create_assessment", {
+        return await self._call_tool("create_assessment", {
             "concept_ids": concept_ids,
             "num_questions": num_questions,
             "difficulty": difficulty
         })
     
-    def grade_assessment(self, assessment_id: str, student_answers: Dict[str, str], questions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def grade_assessment(self, assessment_id: str, student_answers: Dict[str, str], questions: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Grade a completed assessment"""
-        return self._call_tool("grade_assessment", {
+        return await self._call_tool("grade_assessment", {
             "assessment_id": assessment_id,
             "student_answers": student_answers,
             "questions": questions
         })
     
-    def get_student_analytics(self, student_id: str, timeframe_days: int = 30) -> Dict[str, Any]:
+    async def get_student_analytics(self, student_id: str, timeframe_days: int = 30) -> Dict[str, Any]:
         """Get comprehensive analytics for a student"""
-        return self._call_tool("get_student_analytics", {
+        return await self._call_tool("get_student_analytics", {
             "student_id": student_id,
             "timeframe_days": timeframe_days
-        })    
-    def check_submission_originality(self, submission: str, reference_sources: List[str]) -> Dict[str, Any]:
+        })
+    
+    async def check_submission_originality(self, submission: str, reference_sources: List[str]) -> Dict[str, Any]:
         """Check student submission for potential plagiarism"""
-        return self._call_tool("check_submission_originality", {
+        return await self._call_tool("check_submission_originality", {
             "submission": submission,
             "reference_sources": reference_sources
         })
+    
+    async def close(self):
+        """Close the aiohttp session"""
+        if self.session:
+            await self.session.close()
+            self.session = None
 
 # Create a default client instance for easy import
 client = TutorXClient()

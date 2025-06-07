@@ -6,6 +6,8 @@ import argparse
 import importlib.util
 import os
 import sys
+import time
+import subprocess
 
 def load_module(name, path):
     """Load a module from path"""
@@ -14,16 +16,22 @@ def load_module(name, path):
     spec.loader.exec_module(module)
     return module
 
-def run_mcp_server():
-    """Run the MCP server"""
-    print("Starting TutorX MCP Server...")
+def run_mcp_server(host="127.0.0.1", port=8000, transport="streamable-http"):
+    """Run the MCP server with specified configuration"""
+    print(f"Starting TutorX MCP Server on {host}:{port} using {transport} transport...")
+    
+    # Set environment variables for MCP server
+    os.environ["MCP_HOST"] = host
+    os.environ["MCP_PORT"] = str(port)
+    os.environ["MCP_TRANSPORT"] = transport
+    
     main_module = load_module("main", "main.py")
     
     # Access the mcp instance and run it
-    if hasattr(main_module, "mcp"):
-        main_module.mcp.run()
+    if hasattr(main_module, "run_server"):
+        main_module.run_server()
     else:
-        print("Error: MCP server instance not found in main.py")
+        print("Error: run_server function not found in main.py")
         sys.exit(1)
 
 def run_gradio_interface():
@@ -37,6 +45,17 @@ def run_gradio_interface():
     else:
         print("Error: Gradio demo not found in app.py")
         sys.exit(1)
+
+def check_port_available(port):
+    """Check if a port is available"""
+    import socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind(('127.0.0.1', port))
+        sock.close()
+        return True
+    except:
+        return False
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run TutorX MCP Server or Gradio Interface")
@@ -57,24 +76,36 @@ if __name__ == "__main__":
         default=8000,
         help="Port to use"
     )
+    parser.add_argument(
+        "--transport",
+        choices=["stdio", "streamable-http", "sse"],
+        default="streamable-http",
+        help="Transport protocol to use"
+    )
     
     args = parser.parse_args()
     
     if args.mode == "mcp":
-        # Set environment variables for MCP server
-        os.environ["MCP_HOST"] = args.host
-        os.environ["MCP_PORT"] = str(args.port)
-        run_mcp_server()
+        if not check_port_available(args.port):
+            print(f"Warning: Port {args.port} is already in use. Trying to use the server anyway...")
+        run_mcp_server(args.host, args.port, args.transport)
     elif args.mode == "gradio":
         run_gradio_interface()
     elif args.mode == "both":
         # For 'both' mode, we'll start MCP server in a separate process
-        import subprocess
-        import time
-        
+        if not check_port_available(args.port):
+            print(f"Warning: Port {args.port} is already in use. Trying to use the server anyway...")
+            
         # Start MCP server in a background process
         mcp_process = subprocess.Popen(
-            [sys.executable, "run.py", "--mode", "mcp", "--host", args.host, "--port", str(args.port)],
+            [
+                sys.executable, 
+                "run.py", 
+                "--mode", "mcp", 
+                "--host", args.host, 
+                "--port", str(args.port),
+                "--transport", args.transport
+            ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
