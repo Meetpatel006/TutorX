@@ -191,48 +191,11 @@ class TutorXClient:
             "student_id": student_id,
             "timeframe_days": timeframe_days
         })
-    
-    def check_submission_originality(self, submission: str, reference_sources: List[str]) -> Dict[str, Any]:
+      def check_submission_originality(self, submission: str, reference_sources: List[str]) -> Dict[str, Any]:
         """Check student submission for potential plagiarism"""
         return self._call_tool("check_submission_originality", {
             "submission": submission,
             "reference_sources": reference_sources
-        })
-    
-    # ------------ Gamification ------------
-    
-    def award_student_badge(self, student_id: str, badge_id: str) -> Dict[str, Any]:
-        """Award a badge to a student"""
-        return self._call_tool("award_student_badge", {
-            "student_id": student_id,
-            "badge_id": badge_id
-        })
-    
-    def get_badges_for_student(self, student_id: str) -> Dict[str, Any]:
-        """Get all badges for a student"""
-        return self._call_tool("get_badges_for_student", {
-            "student_id": student_id
-        })
-    
-    def update_student_leaderboard(self, leaderboard_id: str, student_id: str, score: float) -> Dict[str, Any]:
-        """Update a leaderboard with a student's score"""
-        return self._call_tool("update_student_leaderboard", {
-            "leaderboard_id": leaderboard_id,
-            "student_id": student_id,
-            "score": score
-        })
-    
-    def get_current_leaderboard(self, leaderboard_id: str) -> Dict[str, Any]:
-        """Get current leaderboard standings"""
-        return self._call_tool("get_current_leaderboard", {
-            "leaderboard_id": leaderboard_id
-        })
-    
-    def track_student_activity(self, student_id: str, activity_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Track a student's activity and check for achievements"""
-        return self._call_tool("track_student_activity", {
-            "student_id": student_id,
-            "activity_data": activity_data
         })
     
     # ------------ External Integrations ------------

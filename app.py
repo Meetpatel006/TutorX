@@ -56,7 +56,7 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 
                 with gr.Column():
                     assessment_output = gr.JSON(label="Skill Assessment")
-              assess_btn.click(
+            assess_btn.click(
                 fn=lambda concept: client.assess_skill(student_id, concept),
                 inputs=[concept_id_input],
                 outputs=[assessment_output]
@@ -105,7 +105,7 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 
                 with gr.Column():
                     lesson_output = gr.JSON(label="Lesson Plan")
-              gen_lesson_btn.click(
+            gen_lesson_btn.click(
                 fn=lambda topic, grade, duration: client.generate_lesson(topic, grade, duration),
                 inputs=[topic_input, grade_input, duration_input],
                 outputs=[lesson_output]
@@ -142,7 +142,7 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 
                 with gr.Column():
                     text_output = gr.JSON(label="Response")
-              text_btn.click(
+            text_btn.click(
                 fn=lambda query: client.text_interaction(query, student_id),
                 inputs=[text_input],
                 outputs=[text_output]
@@ -171,7 +171,7 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
             analytics_btn = gr.Button("Generate Analytics Report")
             timeframe = gr.Slider(minimum=7, maximum=90, value=30, step=1, label="Timeframe (days)")
             analytics_output = gr.JSON(label="Performance Analytics")
-              analytics_btn.click(
+            analytics_btn.click(
                 fn=lambda days: client.get_student_analytics(student_id, days),
                 inputs=[timeframe],
                 outputs=[analytics_output]
@@ -210,7 +210,7 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 
                 with gr.Column():
                     assessment_output = gr.JSON(label="Generated Assessment")
-              create_assess_btn.click(
+            create_assess_btn.click(
                 fn=lambda concepts, num, diff: client.create_assessment(concepts, num, diff),
                 inputs=[assess_concepts, assess_questions, assess_diff],
                 outputs=[assessment_output]
@@ -239,102 +239,6 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 fn=lambda sub, ref: client.check_submission_originality(sub, [ref]),
                 inputs=[submission_input, reference_input],
                 outputs=[plagiarism_output]
-            )
-        
-        # Tab 6: Gamification
-        with gr.Tab("Gamification"):
-            gr.Markdown("## Student Badges")
-            
-            with gr.Row():
-                with gr.Column():
-                    badges_student_id = gr.Textbox(label="Student ID", value=student_id)
-                    get_badges_btn = gr.Button("Get Student Badges")
-                
-                with gr.Column():
-                    badges_output = gr.JSON(label="Student Badges")
-            
-            get_badges_btn.click(
-                fn=lambda sid: client.get_badges_for_student(sid),
-                inputs=[badges_student_id],
-                outputs=[badges_output]
-            )
-            
-            gr.Markdown("## Award Badge")
-            
-            with gr.Row():
-                with gr.Column():
-                    award_student_id = gr.Textbox(label="Student ID", value=student_id)
-                    badge_id = gr.Dropdown(
-                        choices=["beginner", "persistent", "math_whiz", "science_explorer", 
-                                "speed_demon", "accuracy_master", "helping_hand", 
-                                "night_owl", "early_bird", "perfect_streak"],
-                        label="Badge to Award",
-                        value="beginner"
-                    )
-                    award_badge_btn = gr.Button("Award Badge")
-                
-                with gr.Column():
-                    award_output = gr.JSON(label="Award Result")
-            
-            award_badge_btn.click(
-                fn=lambda sid, bid: client.award_student_badge(sid, bid),
-                inputs=[award_student_id, badge_id],
-                outputs=[award_output]
-            )
-            
-            gr.Markdown("## Leaderboards")
-            
-            with gr.Row():
-                with gr.Column():
-                    leaderboard_id = gr.Dropdown(
-                        choices=["weekly_points", "monthly_streak", "problem_solving_speed"],
-                        label="Leaderboard",
-                        value="weekly_points"
-                    )
-                    get_leaderboard_btn = gr.Button("Get Leaderboard")
-                
-                with gr.Column():
-                    leaderboard_output = gr.JSON(label="Leaderboard")
-            
-            get_leaderboard_btn.click(
-                fn=lambda lid: client.get_current_leaderboard(lid),
-                inputs=[leaderboard_id],
-                outputs=[leaderboard_output]
-            )
-            
-            gr.Markdown("## Track Activity")
-            
-            with gr.Row():
-                with gr.Column():
-                    track_student_id = gr.Textbox(label="Student ID", value=student_id)
-                    activity_type = gr.Dropdown(
-                        choices=["lesson_completed", "assessment_completed", "problem_solved", "forum_post", "login"],
-                        label="Activity Type",
-                        value="lesson_completed"
-                    )
-                    activity_score = gr.Slider(minimum=0, maximum=1, value=0.85, step=0.01, label="Score/Performance")
-                    activity_subject = gr.Dropdown(
-                        choices=["math", "science", "language", "history", "other"],
-                        label="Subject",
-                        value="math"
-                    )
-                    track_btn = gr.Button("Track Activity")
-                
-                with gr.Column():
-                    activity_output = gr.JSON(label="Activity Tracking Result")
-            
-            track_btn.click(
-                fn=lambda sid, atype, score, subject: client.track_student_activity(
-                    sid, 
-                    {
-                        "activity_type": atype,
-                        "score": score,
-                        "subject": subject,
-                        "time_seconds": 90  # Simulated time value
-                    }
-                ),
-                inputs=[track_student_id, activity_type, activity_score, activity_subject],
-                outputs=[activity_output]
             )
 
 # Launch the app

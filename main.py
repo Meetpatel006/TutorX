@@ -18,13 +18,6 @@ from utils.assessment import (
     generate_performance_analytics,
     detect_plagiarism
 )
-from utils.gamification import (
-    award_badge,
-    get_student_badges,
-    update_leaderboard,
-    get_leaderboard,
-    check_achievements
-)
 from utils.integrations import (
     LMSIntegration,
     OERIntegration,
@@ -588,88 +581,8 @@ def check_submission_originality(submission: str, reference_sources: List[str]) 
         reference_sources: List of reference texts to check against
         
     Returns:
-        Originality analysis
-    """
+        Originality analysis    """
     return detect_plagiarism(submission, reference_sources)
-
-# ------------------ Gamification Features ------------------
-
-@mcp.tool()
-def award_student_badge(student_id: str, badge_id: str) -> Dict[str, Any]:
-    """
-    Award a badge to a student
-    
-    Args:
-        student_id: The student's unique identifier
-        badge_id: The badge ID to award
-        
-    Returns:
-        Badge information
-    """
-    return award_badge(student_id, badge_id)
-
-@mcp.tool()
-def get_badges_for_student(student_id: str) -> Dict[str, Any]:
-    """
-    Get all badges for a student
-    
-    Args:
-        student_id: The student's unique identifier
-        
-    Returns:
-        Badge information
-    """
-    return get_student_badges(student_id)
-
-@mcp.tool()
-def update_student_leaderboard(leaderboard_id: str, student_id: str, score: float) -> Dict[str, Any]:
-    """
-    Update a leaderboard with a student's score
-    
-    Args:
-        leaderboard_id: ID of the leaderboard to update
-        student_id: The student's unique identifier
-        score: The score to record
-        
-    Returns:
-        Leaderboard information
-    """
-    return update_leaderboard(leaderboard_id, student_id, score)
-
-@mcp.tool()
-def get_current_leaderboard(leaderboard_id: str) -> Dict[str, Any]:
-    """
-    Get current leaderboard standings
-    
-    Args:
-        leaderboard_id: ID of the leaderboard to get
-        
-    Returns:
-        Leaderboard information
-    """
-    return get_leaderboard(leaderboard_id)
-
-@mcp.tool()
-def track_student_activity(student_id: str, activity_data: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Track a student's activity and check for achievements
-    
-    Args:
-        student_id: The student's unique identifier
-        activity_data: Data about the activity
-        
-    Returns:
-        Tracking information and any new badges
-    """
-    new_badges = check_achievements(student_id, activity_data)
-    
-    return {
-        "student_id": student_id,
-        "activity_tracked": True,
-        "activity_data": activity_data,
-        "new_badges": new_badges,
-        "timestamp": datetime.now().isoformat()
-    }
 
 # ------------------ External Integrations ------------------
 

@@ -182,16 +182,6 @@ TutorX-MCP can integrate with various external educational systems:
    - Schedule and manage tutoring sessions
    - Connect students with expert tutors
 
-## Deployment
-
-For production deployment, see [Deployment Guide](docs/deployment.md) which covers:
-
-- Docker-based deployment
-- Manual installation
-- Scaling strategies
-- Monitoring setup
-- Security considerations
-
 ## Documentation
 
 - [API Documentation](docs/api.md): Complete API reference for developers
