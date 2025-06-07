@@ -1,6 +1,7 @@
 # TutorX MCP Server
 from mcp.server.fastmcp import FastMCP
 import json
+import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
@@ -16,6 +17,18 @@ from utils.assessment import (
     evaluate_student_answer,
     generate_performance_analytics,
     detect_plagiarism
+)
+from utils.gamification import (
+    award_badge,
+    get_student_badges,
+    update_leaderboard,
+    get_leaderboard,
+    check_achievements
+)
+from utils.integrations import (
+    LMSIntegration,
+    OERIntegration,
+    RTPTIntegration
 )
 
 # Create the TutorX MCP server
@@ -578,6 +591,201 @@ def check_submission_originality(submission: str, reference_sources: List[str]) 
         Originality analysis
     """
     return detect_plagiarism(submission, reference_sources)
+
+# ------------------ Gamification Features ------------------
+
+@mcp.tool()
+def award_student_badge(student_id: str, badge_id: str) -> Dict[str, Any]:
+    """
+    Award a badge to a student
+    
+    Args:
+        student_id: The student's unique identifier
+        badge_id: The badge ID to award
+        
+    Returns:
+        Badge information
+    """
+    return award_badge(student_id, badge_id)
+
+@mcp.tool()
+def get_badges_for_student(student_id: str) -> Dict[str, Any]:
+    """
+    Get all badges for a student
+    
+    Args:
+        student_id: The student's unique identifier
+        
+    Returns:
+        Badge information
+    """
+    return get_student_badges(student_id)
+
+@mcp.tool()
+def update_student_leaderboard(leaderboard_id: str, student_id: str, score: float) -> Dict[str, Any]:
+    """
+    Update a leaderboard with a student's score
+    
+    Args:
+        leaderboard_id: ID of the leaderboard to update
+        student_id: The student's unique identifier
+        score: The score to record
+        
+    Returns:
+        Leaderboard information
+    """
+    return update_leaderboard(leaderboard_id, student_id, score)
+
+@mcp.tool()
+def get_current_leaderboard(leaderboard_id: str) -> Dict[str, Any]:
+    """
+    Get current leaderboard standings
+    
+    Args:
+        leaderboard_id: ID of the leaderboard to get
+        
+    Returns:
+        Leaderboard information
+    """
+    return get_leaderboard(leaderboard_id)
+
+@mcp.tool()
+def track_student_activity(student_id: str, activity_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Track a student's activity and check for achievements
+    
+    Args:
+        student_id: The student's unique identifier
+        activity_data: Data about the activity
+        
+    Returns:
+        Tracking information and any new badges
+    """
+    new_badges = check_achievements(student_id, activity_data)
+    
+    return {
+        "student_id": student_id,
+        "activity_tracked": True,
+        "activity_data": activity_data,
+        "new_badges": new_badges,
+        "timestamp": datetime.now().isoformat()
+    }
+
+# ------------------ External Integrations ------------------
+
+@mcp.tool()
+def lms_sync_grades(lms_type: str, api_url: str, api_key: str, 
+                  course_id: str, assignment_id: str, 
+                  grades: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Sync grades with a Learning Management System
+    
+    Args:
+        lms_type: Type of LMS ('canvas', 'moodle', 'blackboard')
+        api_url: URL for the LMS API
+        api_key: API key for authentication
+        course_id: ID of the course
+        assignment_id: ID of the assignment
+        grades: List of grade data to sync
+        
+    Returns:
+        Status of the sync operation
+    """
+    try:
+        lms = LMSIntegration(lms_type, api_url, api_key)
+        success = lms.sync_grades(course_id, assignment_id, grades)
+        return {
+            "success": success,
+            "timestamp": datetime.now().isoformat(),
+            "message": "Grades successfully synced" if success else "Failed to sync grades"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+@mcp.tool()
+def oer_search(repository_url: str, query: str, 
+              subject: Optional[str] = None, grade_level: Optional[str] = None,
+              api_key: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Search for educational resources in OER repositories
+    
+    Args:
+        repository_url: URL of the OER repository
+        query: Search query
+        subject: Optional subject filter
+        grade_level: Optional grade level filter
+        api_key: Optional API key if required
+        
+    Returns:
+        List of matching resources
+    """
+    try:
+        oer = OERIntegration(repository_url, api_key)
+        results = oer.search_resources(query, subject, grade_level)
+        return {
+            "success": True,
+            "count": len(results),
+            "results": results,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+@mcp.tool()
+def schedule_tutoring_session(platform_url: str, client_id: str, client_secret: str,
+                            student_id: str, subject: str, datetime_str: str) -> Dict[str, Any]:
+    """
+    Schedule a session with a real-time personalized tutoring platform
+    
+    Args:
+        platform_url: URL of the tutoring platform
+        client_id: OAuth client ID
+        client_secret: OAuth client secret
+        student_id: ID of the student
+        subject: Subject for tutoring
+        datetime_str: ISO format datetime for the session
+        
+    Returns:
+        Session details
+    """
+    try:
+        # Find an available tutor
+        rtpt = RTPTIntegration(platform_url, client_id, client_secret)
+        tutors = rtpt.get_available_tutors(subject, "intermediate")
+        
+        if not tutors:
+            return {
+                "success": False,
+                "message": "No tutors available for this subject",
+                "timestamp": datetime.now().isoformat()
+            }
+        
+        # Schedule with first available tutor
+        tutor_id = tutors[0]["id"]
+        session = rtpt.schedule_session(student_id, tutor_id, subject, datetime_str)
+        
+        return {
+            "success": True,
+            "session_id": session.get("id"),
+            "tutor": session.get("tutor"),
+            "datetime": session.get("datetime"),
+            "join_url": session.get("join_url"),
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
 
 if __name__ == "__main__":
     mcp.run()

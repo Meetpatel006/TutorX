@@ -1,0 +1,46 @@
+version: '3'
+
+services:
+  tutorx-mcp:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    ports:
+      - "8000:8000"  # MCP server
+    environment:
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8000
+      - LOG_LEVEL=INFO
+      - REDIS_HOST=redis
+    volumes:
+      - tutorx-data:/data
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  tutorx-web:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.web
+    ports:
+      - "7860:7860"  # Gradio interface
+    environment:
+      - GRADIO_SERVER_NAME=0.0.0.0
+      - GRADIO_SERVER_PORT=7860
+      - MCP_SERVER_URL=http://tutorx-mcp:8000
+    depends_on:
+      - tutorx-mcp
+    restart: unless-stopped
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+volumes:
+  tutorx-data:
+  redis-data:

@@ -198,6 +198,89 @@ class TutorXClient:
             "submission": submission,
             "reference_sources": reference_sources
         })
+    
+    # ------------ Gamification ------------
+    
+    def award_student_badge(self, student_id: str, badge_id: str) -> Dict[str, Any]:
+        """Award a badge to a student"""
+        return self._call_tool("award_student_badge", {
+            "student_id": student_id,
+            "badge_id": badge_id
+        })
+    
+    def get_badges_for_student(self, student_id: str) -> Dict[str, Any]:
+        """Get all badges for a student"""
+        return self._call_tool("get_badges_for_student", {
+            "student_id": student_id
+        })
+    
+    def update_student_leaderboard(self, leaderboard_id: str, student_id: str, score: float) -> Dict[str, Any]:
+        """Update a leaderboard with a student's score"""
+        return self._call_tool("update_student_leaderboard", {
+            "leaderboard_id": leaderboard_id,
+            "student_id": student_id,
+            "score": score
+        })
+    
+    def get_current_leaderboard(self, leaderboard_id: str) -> Dict[str, Any]:
+        """Get current leaderboard standings"""
+        return self._call_tool("get_current_leaderboard", {
+            "leaderboard_id": leaderboard_id
+        })
+    
+    def track_student_activity(self, student_id: str, activity_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Track a student's activity and check for achievements"""
+        return self._call_tool("track_student_activity", {
+            "student_id": student_id,
+            "activity_data": activity_data
+        })
+    
+    # ------------ External Integrations ------------
+    
+    def lms_sync_grades(self, lms_type: str, api_url: str, api_key: str, 
+                      course_id: str, assignment_id: str, 
+                      grades: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Sync grades with a Learning Management System"""
+        return self._call_tool("lms_sync_grades", {
+            "lms_type": lms_type,
+            "api_url": api_url,
+            "api_key": api_key,
+            "course_id": course_id,
+            "assignment_id": assignment_id,
+            "grades": grades
+        })
+    
+    def oer_search(self, repository_url: str, query: str, 
+                  subject: Optional[str] = None, grade_level: Optional[str] = None,
+                  api_key: Optional[str] = None) -> Dict[str, Any]:
+        """Search for educational resources in OER repositories"""
+        params = {
+            "repository_url": repository_url,
+            "query": query
+        }
+        
+        if subject:
+            params["subject"] = subject
+            
+        if grade_level:
+            params["grade_level"] = grade_level
+            
+        if api_key:
+            params["api_key"] = api_key
+            
+        return self._call_tool("oer_search", params)
+    
+    def schedule_tutoring_session(self, platform_url: str, client_id: str, client_secret: str,
+                                student_id: str, subject: str, datetime_str: str) -> Dict[str, Any]:
+        """Schedule a session with a real-time personalized tutoring platform"""
+        return self._call_tool("schedule_tutoring_session", {
+            "platform_url": platform_url,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "student_id": student_id,
+            "subject": subject,
+            "datetime_str": datetime_str
+        })
 
 # Create a default client instance for easy import
 client = TutorXClient()

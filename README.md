@@ -127,10 +127,15 @@ tutorx-mcp/
 ├── client.py            # MCP client for calling server tools
 ├── app.py               # Gradio web interface
 ├── run.py               # Runner script for different modes
+├── tests/               # Test suite
+│   ├── test_mcp_server.py  # MCP server tests
+│   ├── test_client.py      # Client tests
+│   └── test_utils.py       # Utility function tests
 ├── utils/               # Utility modules
 │   ├── multimodal.py    # Multi-modal processing utilities
 │   └── assessment.py    # Assessment and analytics functions
 ├── pyproject.toml       # Project dependencies
+├── run_tests.py         # Script to run all tests
 └── README.md            # Project documentation
 ```
 
@@ -149,11 +154,55 @@ This separation of concerns allows:
 - The web interface to interact with the server using standard HTTP
 - Clear boundaries between presentation, business logic, and tool implementation
 
+## Testing
+
+The project includes a comprehensive test suite:
+
+```bash
+# Install test dependencies
+uv install -e ".[test]"
+
+# Run test suite
+python run_tests.py
+```
+
+### Integration with External Systems
+
+TutorX-MCP can integrate with various external educational systems:
+
+1. **Learning Management Systems (LMS)**
+   - Canvas, Moodle, Blackboard
+   - Grade syncing and assignment management
+   
+2. **Open Educational Resources (OER)**
+   - Search and integration with OER repositories
+   - Access to diverse educational content
+   
+3. **Real-time Personalized Tutoring Platforms**
+   - Schedule and manage tutoring sessions
+   - Connect students with expert tutors
+
+## Deployment
+
+For production deployment, see [Deployment Guide](docs/deployment.md) which covers:
+
+- Docker-based deployment
+- Manual installation
+- Scaling strategies
+- Monitoring setup
+- Security considerations
+
+## Documentation
+
+- [API Documentation](docs/api.md): Complete API reference for developers
+- [MCP Protocol](docs/mcp.md): Details about the Model Context Protocol
+- [Product Requirements](docs/prd.md): Original requirements document
+- [SDK Documentation](docs/sdk.md): Client SDK usage
+
+## Contributing
+
+We welcome contributions to the TutorX-MCP project! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- Model Context Protocol (MCP) - https://modelcontextprotocol.io/
-- Gradio - https://gradio.app/
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

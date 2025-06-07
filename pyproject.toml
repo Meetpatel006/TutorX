@@ -11,3 +11,13 @@ dependencies = [
     "pillow>=10.0.0",
     "requests>=2.31.0",
 ]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
