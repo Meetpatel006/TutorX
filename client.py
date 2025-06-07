@@ -213,12 +213,7 @@ class TutorXClient:
             "difficulty": difficulty
         })
     
-    async def analyze_error_patterns(self, student_id: str, concept_id: str) -> Dict[str, Any]:
-        """Analyze common error patterns for a student on a specific concept"""
-        return await self._call_tool("analyze_error_patterns", {
-            "student_id": student_id,
-            "concept_id": concept_id
-        })
+
     
     # ------------ Advanced Features ------------
     
@@ -282,12 +277,7 @@ class TutorXClient:
             "student_id": student_id
         })
     
-    async def handwriting_recognition(self, image_data_base64: str, student_id: str) -> Dict[str, Any]:
-        """Process handwritten input from the student"""
-        return await self._call_tool("handwriting_recognition", {
-            "image_data_base64": image_data_base64,
-            "student_id": student_id
-        })
+
     
     # ------------ Assessment ------------
     
@@ -320,6 +310,37 @@ class TutorXClient:
             "submission": submission,
             "reference_sources": reference_sources
         })
+        
+    async def pdf_ocr(self, pdf_file: str) -> Dict[str, Any]:
+        """
+        Extract text from a PDF file using OCR
+        
+        Args:
+            pdf_file: Path to the PDF file
+            
+        Returns:
+            Dictionary containing extracted text and metadata
+        """
+        try:
+            # Read the PDF file as binary data
+            with open(pdf_file, "rb") as f:
+                pdf_data = f.read()
+            
+            # Convert to base64 for transmission
+            pdf_base64 = base64.b64encode(pdf_data).decode('utf-8')
+            
+            # Call the server's PDF OCR endpoint
+            return await self._call_tool("pdf_ocr", {
+                "pdf_data": pdf_base64,
+                "filename": os.path.basename(pdf_file)
+            })
+            
+        except Exception as e:
+            return {
+                "error": f"Failed to process PDF: {str(e)}",
+                "success": False,
+                "timestamp": datetime.now().isoformat()
+            }
     
 
     async def get_curriculum_standards(self, country_code: str = "us") -> Dict[str, Any]:

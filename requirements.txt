@@ -19,3 +19,5 @@ mypy>=0.910
 ruff>=0.0.262
 networkx>=3.0
 matplotlib>=3.5.0
+PyMuPDF>=1.19.0
+pytesseract>=0.3.8

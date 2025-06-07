@@ -2,12 +2,11 @@
 Gradio web interface for the TutorX MCP Server with SSE support
 """
 
+import os
 import gradio as gr
 import numpy as np
 import json
-import base64
-from io import BytesIO
-from PIL import Image
+
 from datetime import datetime
 import asyncio
 import aiohttp
@@ -21,15 +20,7 @@ from client import client
 SERVER_URL = "http://localhost:8001"  # Default port is now 8001 to match main.py
 
 # Utility functions
-def image_to_base64(img):
-    """Convert a PIL image or numpy array to base64 string"""
-    if isinstance(img, np.ndarray):
-        img = Image.fromarray(img)
-    
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    img_str = base64.b64encode(buffered.getvalue()).decode()
-    return img_str
+
 
 async def load_concept_graph(concept_id: str = None):
     """
@@ -357,47 +348,40 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 outputs=[text_output]
             )
             
-            gr.Markdown("## Handwriting Recognition")
-            
+            gr.Markdown("## PDF OCR and Summarization (Coming Soon)")
             with gr.Row():
                 with gr.Column():
-                    drawing_input = gr.Sketchpad(label="Draw an Equation")
-                    drawing_btn = gr.Button("Recognize")
+                    pdf_input = gr.File(label="Upload PDF", file_types=[".pdf"])
+                    ocr_btn = gr.Button("Extract Text")
                 
                 with gr.Column():
-                    drawing_output = gr.JSON(label="Recognition Results")
+                    summary_output = gr.JSON(label="Summary")
             
-            async def handwriting_async(drawing):
-                return await client.handwriting_recognition(image_to_base64(drawing), "student_12345")
+            async def pdf_ocr_async(pdf_file):
+                if not pdf_file:
+                    return {"error": "No PDF file provided", "success": False}
+                try:
+                    # Get the file path from the Gradio file object
+                    if isinstance(pdf_file, dict):
+                        file_path = pdf_file.get("path", "")
+                    else:
+                        file_path = pdf_file
+                    
+                    if not file_path or not os.path.exists(file_path):
+                        return {"error": "File not found", "success": False}
+                        
+                    return await client.pdf_ocr(file_path)
+                except Exception as e:
+                    return {"error": f"Error processing PDF: {str(e)}", "success": False}
                 
-            drawing_btn.click(
-                fn=handwriting_async,
-                inputs=[drawing_input],
-                outputs=[drawing_output]
+            ocr_btn.click(
+                fn=pdf_ocr_async,
+                inputs=[pdf_input],
+                outputs=[summary_output]
             )
         
         # Tab 4: Analytics
         with gr.Tab("Analytics"):
-            gr.Markdown("## Student Performance")
-            
-            # Error Pattern Analysis
-            error_concept = gr.Dropdown(
-                choices=["math_algebra_basics", "math_algebra_linear_equations", "math_algebra_quadratic_equations"],
-                label="Select Concept for Analysis",
-                value="math_algebra_linear_equations"
-            )
-            error_btn = gr.Button("Analyze Concept")
-            error_output = gr.JSON(label="Analysis Results")
-            
-            async def analyze_errors_async(concept):
-                return await client.analyze_error_patterns("student_12345", concept)
-                
-            error_btn.click(
-                fn=analyze_errors_async,
-                inputs=[error_concept],
-                outputs=[error_output]
-            )
-            
             gr.Markdown("## Plagiarism Detection")
             
             with gr.Row():
