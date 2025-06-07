@@ -1,24 +1,58 @@
 # TutorX-MCP Server
 
-A Model Context Protocol (MCP) server for educational AI tutoring as specified in the PRD.
+A comprehensive Model Context Protocol (MCP) server for educational AI tutoring as specified in the Product Requirements Document (PRD).
 
 ## Overview
 
-TutorX-MCP is an adaptive, multi-modal, and collaborative AI tutoring platform that leverages the Model Context Protocol (MCP) for tool integration and provides APIs for educational features.
+TutorX-MCP is an adaptive, multi-modal, and collaborative AI tutoring platform that leverages the Model Context Protocol (MCP) for tool integration and Gradio for user-friendly interfaces. It provides a range of educational features accessible via both MCP clients and a dedicated web interface.
+
+![TutorX-MCP](https://via.placeholder.com/800x400?text=TutorX-MCP+Educational+Platform)
 
 ## Features
 
-- **Adaptive Learning Engine**: Concept graph, skill assessment, and personalized learning paths
-- **Assessment Suite**: Quiz generation, solution analysis
-- **Feedback System**: Error pattern analysis and contextual suggestions
-- **Multi-Modal Interaction**: Text-based Q&A (with planned voice and handwriting recognition)
+### Core Features
+
+- **Adaptive Learning Engine**
+  - Comprehensive concept graph
+  - Dynamic skill assessment and tracking
+  - Personalized learning paths
+
+- **Assessment Suite**
+  - Automated quiz and problem generation
+  - Step-by-step solution analysis
+  - Plagiarism and similarity detection
+
+- **Feedback System**
+  - Contextual error analysis and suggestions
+  - Error pattern recognition
+
+- **Multi-Modal Interaction**
+  - Text-based Q&A with error pattern recognition
+  - Voice recognition with analysis
+  - Handwriting recognition and digital ink processing
+
+### Advanced Features
+
+- **Neurological Engagement Monitor**
+  - Attention, cognitive load, and stress detection
+
+- **Cross-Institutional Knowledge Fusion**
+  - Curriculum alignment with national standards
+  - Content reconciliation
+
+- **Automated Lesson Authoring**
+  - AI-powered content generation
 
 ## Getting Started
 
 ### Prerequisites
 
 - Python 3.12 or higher
-- Dependencies as listed in pyproject.toml
+- Dependencies as listed in pyproject.toml:
+  - mcp[cli] >= 1.9.3
+  - gradio >= 4.19.0
+  - numpy >= 1.24.0
+  - pillow >= 10.0.0
 
 ### Installation
 
@@ -27,29 +61,83 @@ TutorX-MCP is an adaptive, multi-modal, and collaborative AI tutoring platform t
 git clone https://github.com/yourusername/tutorx-mcp.git
 cd tutorx-mcp
 
-# Install dependencies
+# Using uv (recommended)
 uv install
+
+# Or using pip
+pip install -e .
 ```
 
 ### Running the Server
 
+You can run the server in different modes:
+
 ```bash
-python main.py
+# MCP server only
+python run.py --mode mcp
+
+# Gradio interface only
+python run.py --mode gradio
+
+# Both MCP server and Gradio interface
+python run.py --mode both
+
+# Custom host and port
+python run.py --mode mcp --host 0.0.0.0 --port 9000
 ```
 
-By default, the server will run in development mode and you can access it at http://localhost:8000.
+By default, the MCP server will run at http://localhost:8000 and the Gradio interface at http://127.0.0.1:7860.
 
 ## MCP Tool Integration
 
-The server exposes MCP tools for:
-- Skill assessment
-- Quiz generation
-- Error pattern analysis
+The server exposes the following MCP tools and resources:
 
-And MCP resources for:
-- Concept graph
-- Learning paths
+### Tools
+- **Core Features**
+  - `assess_skill`: Evaluate student's skill level on specific concepts
+  - `generate_quiz`: Create quizzes for specific concepts
+  - `analyze_error_patterns`: Find common student mistakes
+
+- **Assessment**
+  - `create_assessment`: Generate complete assessments
+  - `grade_assessment`: Score student responses
+  - `check_submission_originality`: Detect plagiarism
+
+- **Advanced Features**
+  - `analyze_cognitive_state`: Process EEG data
+  - `align_content_to_standard`: Match content to curriculum standards
+  - `generate_lesson`: Create complete lesson plans
+
+- **Multi-Modal**
+  - `text_interaction`: Process text queries
+  - `voice_interaction`: Handle voice input
+  - `handwriting_recognition`: Process handwritten input
+
+### Resources
+- `concept-graph://`: Knowledge concept graph
+- `learning-path://{student_id}`: Personalized learning paths
+- `curriculum-standards://{country_code}`: National curricular standards
+- `student-dashboard://{student_id}`: Student performance dashboard
+
+## Project Structure
+
+```
+tutorx-mcp/
+├── main.py              # MCP server implementation
+├── app.py               # Gradio web interface
+├── run.py               # Runner script for different modes
+├── utils/               # Utility modules
+│   ├── multimodal.py    # Multi-modal processing utilities
+│   └── assessment.py    # Assessment and analytics functions
+├── pyproject.toml       # Project dependencies
+└── README.md            # Project documentation
+```
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- Model Context Protocol (MCP) - https://modelcontextprotocol.io/
+- Gradio - https://gradio.app/
