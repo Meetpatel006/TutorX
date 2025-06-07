@@ -10,37 +10,8 @@ from io import BytesIO
 from PIL import Image
 from datetime import datetime
 
-# Import MCP server tools
-from main import (
-    # Core features
-    assess_skill,
-    get_concept_graph,
-    get_learning_path,
-    generate_quiz,
-    analyze_error_patterns,
-    
-    # Advanced features
-    analyze_cognitive_state,
-    get_curriculum_standards,
-    align_content_to_standard,
-    generate_lesson,
-    
-    # User experience
-    get_student_dashboard,
-    get_accessibility_settings,
-    update_accessibility_settings,
-    
-    # Multi-modal
-    text_interaction,
-    voice_interaction,
-    handwriting_recognition,
-    
-    # Assessment
-    create_assessment,
-    grade_assessment,
-    get_student_analytics,
-    check_submission_originality
-)
+# Import MCP client to communicate with the MCP server
+from client import client
 
 # Utility functions
 def image_to_base64(img):
@@ -85,9 +56,8 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 
                 with gr.Column():
                     assessment_output = gr.JSON(label="Skill Assessment")
-            
-            assess_btn.click(
-                fn=lambda concept: assess_skill(student_id, concept),
+              assess_btn.click(
+                fn=lambda concept: client.assess_skill(student_id, concept),
                 inputs=[concept_id_input],
                 outputs=[assessment_output]
             )
@@ -97,7 +67,7 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
             concept_graph_output = gr.JSON(label="Concept Graph")
             
             concept_graph_btn.click(
-                fn=lambda: get_concept_graph(),
+                fn=lambda: client.get_concept_graph(),
                 inputs=[],
                 outputs=[concept_graph_output]
             )
@@ -117,7 +87,7 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                     quiz_output = gr.JSON(label="Generated Quiz")
             
             gen_quiz_btn.click(
-                fn=lambda concepts, diff: generate_quiz(concepts, diff),
+                fn=lambda concepts, diff: client.generate_quiz(concepts, diff),
                 inputs=[concepts_input, diff_input],
                 outputs=[quiz_output]
             )
@@ -135,9 +105,8 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 
                 with gr.Column():
                     lesson_output = gr.JSON(label="Lesson Plan")
-            
-            gen_lesson_btn.click(
-                fn=lambda topic, grade, duration: generate_lesson(topic, grade, duration),
+              gen_lesson_btn.click(
+                fn=lambda topic, grade, duration: client.generate_lesson(topic, grade, duration),
                 inputs=[topic_input, grade_input, duration_input],
                 outputs=[lesson_output]
             )
@@ -157,7 +126,7 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                     standards_output = gr.JSON(label="Curriculum Standards")
             
             standards_btn.click(
-                fn=lambda country: get_curriculum_standards(country),
+                fn=lambda country: client.get_curriculum_standards(country),
                 inputs=[country_input],
                 outputs=[standards_output]
             )
@@ -173,9 +142,8 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 
                 with gr.Column():
                     text_output = gr.JSON(label="Response")
-            
-            text_btn.click(
-                fn=lambda query: text_interaction(query, student_id),
+              text_btn.click(
+                fn=lambda query: client.text_interaction(query, student_id),
                 inputs=[text_input],
                 outputs=[text_output]
             )
@@ -192,7 +160,7 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
             
             # Convert drawing to base64 then process
             drawing_btn.click(
-                fn=lambda img: handwriting_recognition(image_to_base64(img), student_id),
+                fn=lambda img: client.handwriting_recognition(image_to_base64(img), student_id),
                 inputs=[drawing_input],
                 outputs=[drawing_output]
             )
@@ -203,9 +171,8 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
             analytics_btn = gr.Button("Generate Analytics Report")
             timeframe = gr.Slider(minimum=7, maximum=90, value=30, step=1, label="Timeframe (days)")
             analytics_output = gr.JSON(label="Performance Analytics")
-            
-            analytics_btn.click(
-                fn=lambda days: get_student_analytics(student_id, days),
+              analytics_btn.click(
+                fn=lambda days: client.get_student_analytics(student_id, days),
                 inputs=[timeframe],
                 outputs=[analytics_output]
             )
@@ -221,7 +188,7 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
             error_output = gr.JSON(label="Error Pattern Analysis")
             
             error_btn.click(
-                fn=lambda concept: analyze_error_patterns(student_id, concept),
+                fn=lambda concept: client.analyze_error_patterns(student_id, concept),
                 inputs=[error_concept],
                 outputs=[error_output]
             )
@@ -243,9 +210,8 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 
                 with gr.Column():
                     assessment_output = gr.JSON(label="Generated Assessment")
-            
-            create_assess_btn.click(
-                fn=lambda concepts, num, diff: create_assessment(concepts, num, diff),
+              create_assess_btn.click(
+                fn=lambda concepts, num, diff: client.create_assessment(concepts, num, diff),
                 inputs=[assess_concepts, assess_questions, assess_diff],
                 outputs=[assessment_output]
             )
@@ -270,7 +236,7 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                     plagiarism_output = gr.JSON(label="Originality Report")
             
             plagiarism_btn.click(
-                fn=lambda sub, ref: check_submission_originality(sub, [ref]),
+                fn=lambda sub, ref: client.check_submission_originality(sub, [ref]),
                 inputs=[submission_input, reference_input],
                 outputs=[plagiarism_output]
             )

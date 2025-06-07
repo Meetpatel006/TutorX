@@ -124,6 +124,7 @@ The server exposes the following MCP tools and resources:
 ```
 tutorx-mcp/
 ├── main.py              # MCP server implementation
+├── client.py            # MCP client for calling server tools
 ├── app.py               # Gradio web interface
 ├── run.py               # Runner script for different modes
 ├── utils/               # Utility modules
@@ -132,6 +133,21 @@ tutorx-mcp/
 ├── pyproject.toml       # Project dependencies
 └── README.md            # Project documentation
 ```
+
+## Architecture
+
+The TutorX-MCP follows a layered architecture:
+
+1. **MCP Server (main.py)**: Core backend that exposes educational tools and resources through the Model Context Protocol.
+
+2. **MCP Client (client.py)**: Client library that communicates with the MCP server through HTTP requests, translating method calls into MCP protocol interactions.
+
+3. **Gradio Interface (app.py)**: Web-based user interface that uses the client to communicate with the MCP server.
+
+This separation of concerns allows:
+- MCP clients (like Claude Desktop App) to directly connect to the MCP server
+- The web interface to interact with the server using standard HTTP
+- Clear boundaries between presentation, business logic, and tool implementation
 
 ## License
 

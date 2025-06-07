@@ -363,6 +363,7 @@ def update_accessibility_settings(student_id: str, settings: Dict[str, Any]) -> 
 # ------------------ Multi-Modal Interaction ------------------
 
 @mcp.tool()
+@mcp.tool()
 def text_interaction(query: str, student_id: str, session_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Process a text query from the student
