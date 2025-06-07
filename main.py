@@ -18,11 +18,6 @@ from utils.assessment import (
     generate_performance_analytics,
     detect_plagiarism
 )
-from utils.integrations import (
-    LMSIntegration,
-    OERIntegration,
-    RTPTIntegration
-)
 
 # Create the TutorX MCP server
 mcp = FastMCP("TutorX")
@@ -581,124 +576,9 @@ def check_submission_originality(submission: str, reference_sources: List[str]) 
         reference_sources: List of reference texts to check against
         
     Returns:
-        Originality analysis    """
+        Originality analysis
+    """
     return detect_plagiarism(submission, reference_sources)
-
-# ------------------ External Integrations ------------------
-
-@mcp.tool()
-def lms_sync_grades(lms_type: str, api_url: str, api_key: str, 
-                  course_id: str, assignment_id: str, 
-                  grades: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Sync grades with a Learning Management System
-    
-    Args:
-        lms_type: Type of LMS ('canvas', 'moodle', 'blackboard')
-        api_url: URL for the LMS API
-        api_key: API key for authentication
-        course_id: ID of the course
-        assignment_id: ID of the assignment
-        grades: List of grade data to sync
-        
-    Returns:
-        Status of the sync operation
-    """
-    try:
-        lms = LMSIntegration(lms_type, api_url, api_key)
-        success = lms.sync_grades(course_id, assignment_id, grades)
-        return {
-            "success": success,
-            "timestamp": datetime.now().isoformat(),
-            "message": "Grades successfully synced" if success else "Failed to sync grades"
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "timestamp": datetime.now().isoformat()
-        }
-
-@mcp.tool()
-def oer_search(repository_url: str, query: str, 
-              subject: Optional[str] = None, grade_level: Optional[str] = None,
-              api_key: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Search for educational resources in OER repositories
-    
-    Args:
-        repository_url: URL of the OER repository
-        query: Search query
-        subject: Optional subject filter
-        grade_level: Optional grade level filter
-        api_key: Optional API key if required
-        
-    Returns:
-        List of matching resources
-    """
-    try:
-        oer = OERIntegration(repository_url, api_key)
-        results = oer.search_resources(query, subject, grade_level)
-        return {
-            "success": True,
-            "count": len(results),
-            "results": results,
-            "timestamp": datetime.now().isoformat()
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "timestamp": datetime.now().isoformat()
-        }
-
-@mcp.tool()
-def schedule_tutoring_session(platform_url: str, client_id: str, client_secret: str,
-                            student_id: str, subject: str, datetime_str: str) -> Dict[str, Any]:
-    """
-    Schedule a session with a real-time personalized tutoring platform
-    
-    Args:
-        platform_url: URL of the tutoring platform
-        client_id: OAuth client ID
-        client_secret: OAuth client secret
-        student_id: ID of the student
-        subject: Subject for tutoring
-        datetime_str: ISO format datetime for the session
-        
-    Returns:
-        Session details
-    """
-    try:
-        # Find an available tutor
-        rtpt = RTPTIntegration(platform_url, client_id, client_secret)
-        tutors = rtpt.get_available_tutors(subject, "intermediate")
-        
-        if not tutors:
-            return {
-                "success": False,
-                "message": "No tutors available for this subject",
-                "timestamp": datetime.now().isoformat()
-            }
-        
-        # Schedule with first available tutor
-        tutor_id = tutors[0]["id"]
-        session = rtpt.schedule_session(student_id, tutor_id, subject, datetime_str)
-        
-        return {
-            "success": True,
-            "session_id": session.get("id"),
-            "tutor": session.get("tutor"),
-            "datetime": session.get("datetime"),
-            "join_url": session.get("join_url"),
-            "timestamp": datetime.now().isoformat()
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "timestamp": datetime.now().isoformat()
-        }
 
 if __name__ == "__main__":
     mcp.run()

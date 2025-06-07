@@ -166,25 +166,10 @@ uv install -e ".[test]"
 python run_tests.py
 ```
 
-### Integration with External Systems
 
-TutorX-MCP can integrate with various external educational systems:
-
-1. **Learning Management Systems (LMS)**
-   - Canvas, Moodle, Blackboard
-   - Grade syncing and assignment management
-   
-2. **Open Educational Resources (OER)**
-   - Search and integration with OER repositories
-   - Access to diverse educational content
-   
-3. **Real-time Personalized Tutoring Platforms**
-   - Schedule and manage tutoring sessions
-   - Connect students with expert tutors
 
 ## Documentation
 
-- [API Documentation](docs/api.md): Complete API reference for developers
 - [MCP Protocol](docs/mcp.md): Details about the Model Context Protocol
 - [Product Requirements](docs/prd.md): Original requirements document
 - [SDK Documentation](docs/sdk.md): Client SDK usage

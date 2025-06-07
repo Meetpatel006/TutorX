@@ -51,7 +51,6 @@ To provide an adaptive, multi-modal, and collaborative AI tutoring platform acce
 - **Feedback System**
     - Contextual error analysis and suggestions
     - Multimodal feedback (text, audio, visual)
-    - Emotional state recognition (via webcam/EEG)
 
 ## 3.2 Advanced Features
 
@@ -74,8 +73,6 @@ To provide an adaptive, multi-modal, and collaborative AI tutoring platform acce
 - **Accessibility**
     - Screen reader compatibility
     - Text-to-speech and adjustable interface
-- **Gamification**
-    - Badges, leaderboards, token-based rewards
 
 ---
 
@@ -85,18 +82,7 @@ To provide an adaptive, multi-modal, and collaborative AI tutoring platform acce
 - **Gradio Interface:** User-friendly, customizable, and accessible
 - **Microservices Architecture:** Modular design for scalability
 - **Real-Time Data Processing:** Asynchronous task queues and caching
-- **Cloud Deployment:** Browser-based access with no local setup
-- **Integration:** Supports external APIs, LMS, and educational tools
-
----
-
-## 5. Non-Functional Requirements
-
-- **Performance:** Supports 100+ concurrent users with <1s response time for core features
-- **Security:** End-to-end encryption, role-based access control
-- **Privacy:** Compliant with GDPR, COPPA, and FERPA
-- **Scalability:** Horizontally scalable to support large institutions
-- **Accessibility:** WCAG 2.1 AA compliant
+- **Local Access:** Browser-based access from local machine
 
 ---
 
@@ -115,7 +101,7 @@ To provide an adaptive, multi-modal, and collaborative AI tutoring platform acce
 1. **Phase 1:** Core adaptive learning engine and MCP integration
 2. **Phase 2:** Multi-modal interaction and collaborative tools
 3. **Phase 3:** Advanced features (engagement monitor, lesson authoring)
-4. **Phase 4:** Deployment, analytics, and gamification
+4. **Phase 4:** Analytics and performance monitoring
 
 ---
 
