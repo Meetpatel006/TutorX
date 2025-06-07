@@ -4,12 +4,18 @@ import json
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-# Import utility functions for multi-modal interactions
+# Import utility functions
 from utils.multimodal import (
     process_text_query,
     process_voice_input,
     process_handwriting,
     generate_speech_response
+)
+from utils.assessment import (
+    generate_question,
+    evaluate_student_answer,
+    generate_performance_analytics,
+    detect_plagiarism
 )
 
 # Create the TutorX MCP server
@@ -454,6 +460,123 @@ def handwriting_recognition(image_data_base64: str, student_id: str) -> Dict[str
         "solution": solution,
         "timestamp": datetime.now().isoformat()
     }
+
+# ------------------ Advanced Assessment Tools ------------------
+
+@mcp.tool()
+def create_assessment(concept_ids: List[str], num_questions: int, difficulty: int = 3) -> Dict[str, Any]:
+    """
+    Create a complete assessment for given concepts
+    
+    Args:
+        concept_ids: List of concept IDs to include
+        num_questions: Number of questions to generate
+        difficulty: Difficulty level (1-5)
+        
+    Returns:
+        Complete assessment with questions
+    """
+    questions = []
+    
+    # Distribute questions evenly among concepts
+    questions_per_concept = num_questions // len(concept_ids)
+    extra_questions = num_questions % len(concept_ids)
+    
+    for i, concept_id in enumerate(concept_ids):
+        # Determine how many questions for this concept
+        concept_questions = questions_per_concept
+        if i < extra_questions:
+            concept_questions += 1
+        
+        # Generate questions for this concept
+        for _ in range(concept_questions):
+            questions.append(generate_question(concept_id, difficulty))
+    
+    return {
+        "assessment_id": f"assessment_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+        "concept_ids": concept_ids,
+        "difficulty": difficulty,
+        "num_questions": len(questions),
+        "questions": questions,
+        "created_at": datetime.now().isoformat()
+    }
+
+@mcp.tool()
+def grade_assessment(assessment_id: str, student_answers: Dict[str, str], questions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Grade a completed assessment
+    
+    Args:
+        assessment_id: The ID of the assessment
+        student_answers: Dictionary mapping question IDs to student answers
+        questions: List of question objects
+        
+    Returns:
+        Grading results
+    """
+    results = []
+    correct_count = 0
+    
+    for question in questions:
+        question_id = question["id"]
+        if question_id in student_answers:
+            evaluation = evaluate_student_answer(question, student_answers[question_id])
+            results.append(evaluation)
+            if evaluation["is_correct"]:
+                correct_count += 1
+    
+    # Calculate score
+    score = correct_count / len(questions) if questions else 0
+    
+    # Analyze error patterns
+    error_types = {}
+    for result in results:
+        if result["error_type"]:
+            error_type = result["error_type"]
+            error_types[error_type] = error_types.get(error_type, 0) + 1
+    
+    # Find most common error
+    most_common_error = None
+    if error_types:
+        most_common_error = max(error_types.items(), key=lambda x: x[1])
+    
+    return {
+        "assessment_id": assessment_id,
+        "score": score,
+        "correct_count": correct_count,
+        "total_questions": len(questions),
+        "results": results,
+        "most_common_error": most_common_error,
+        "completed_at": datetime.now().isoformat()
+    }
+
+@mcp.tool()
+def get_student_analytics(student_id: str, timeframe_days: int = 30) -> Dict[str, Any]:
+    """
+    Get comprehensive analytics for a student
+    
+    Args:
+        student_id: The student's unique identifier
+        timeframe_days: Number of days to include in analysis
+        
+    Returns:
+        Performance analytics
+    """
+    return generate_performance_analytics(student_id, timeframe_days)
+
+@mcp.tool()
+def check_submission_originality(submission: str, reference_sources: List[str]) -> Dict[str, Any]:
+    """
+    Check student submission for potential plagiarism
+    
+    Args:
+        submission: The student's submission text
+        reference_sources: List of reference texts to check against
+        
+    Returns:
+        Originality analysis
+    """
+    return detect_plagiarism(submission, reference_sources)
 
 if __name__ == "__main__":
     mcp.run()
