@@ -1,5 +1,5 @@
 """
-Gradio web interface for the TutorX MCP Server
+Gradio web interface for the TutorX MCP Server with SSE support
 """
 
 import gradio as gr
@@ -10,9 +10,15 @@ from io import BytesIO
 from PIL import Image
 from datetime import datetime
 import asyncio
+import aiohttp
+import sseclient
+import requests
 
 # Import MCP client to communicate with the MCP server
 from client import client
+
+# Server configuration
+SERVER_URL = "http://localhost:8001"  # Default port is now 8001 to match main.py
 
 # Utility functions
 def image_to_base64(img):
@@ -25,13 +31,37 @@ def image_to_base64(img):
     img_str = base64.b64encode(buffered.getvalue()).decode()
     return img_str
 
+async def api_request(endpoint, method="GET", params=None, json_data=None):
+    """Make an API request to the server"""
+    url = f"{SERVER_URL}/api/{endpoint}"
+    headers = {"Content-Type": "application/json"}
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            if method.upper() == "GET":
+                async with session.get(url, params=params, headers=headers) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    else:
+                        error = await response.text()
+                        return {"error": f"API error: {response.status} - {error}"}
+            elif method.upper() == "POST":
+                async with session.post(url, json=json_data, headers=headers) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    else:
+                        error = await response.text()
+                        return {"error": f"API error: {response.status} - {error}"}
+    except Exception as e:
+        return {"error": f"Request failed: {str(e)}"}
+
 # Create Gradio interface
 with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
     gr.Markdown("# 📚 TutorX Educational AI Platform")
     gr.Markdown("""
     An adaptive, multi-modal, and collaborative AI tutoring platform built with MCP.
     
-    This interface demonstrates the functionality of the TutorX MCP server.
+    This interface demonstrates the functionality of the TutorX MCP server using SSE connections.
     """)
     
     # Set a default student ID for the demo
@@ -53,8 +83,12 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 
                 with gr.Column():
                     assessment_output = gr.JSON(label="Skill Assessment")
+            async def on_assess_click(concept_id):
+                result = await api_request("assess_skill", "GET", {"student_id": "student_12345", "concept_id": concept_id})
+                return result
+                
             assess_btn.click(
-                fn=lambda x: asyncio.run(client.assess_skill("student_12345", x)),
+                fn=on_assess_click,
                 inputs=[concept_id_input],
                 outputs=[assessment_output]
             )
@@ -63,8 +97,12 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
             concept_graph_btn = gr.Button("Show Concept Graph")
             concept_graph_output = gr.JSON(label="Concept Graph")
             
+            async def on_concept_graph_click():
+                result = await api_request("concept_graph")
+                return result
+                
             concept_graph_btn.click(
-                fn=lambda: asyncio.run(client.get_concept_graph()),
+                fn=on_concept_graph_click,
                 inputs=[],
                 outputs=[concept_graph_output]
             )
@@ -83,8 +121,16 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 with gr.Column():
                     quiz_output = gr.JSON(label="Generated Quiz")
             
+            async def on_generate_quiz(concepts, difficulty):
+                result = await api_request(
+                    "generate_quiz", 
+                    "POST", 
+                    json_data={"concept_ids": concepts, "difficulty": difficulty}
+                )
+                return result
+                
             gen_quiz_btn.click(
-                fn=lambda x, y: asyncio.run(client.generate_quiz(x, y)),
+                fn=on_generate_quiz,
                 inputs=[concepts_input, diff_input],
                 outputs=[quiz_output]
             )
@@ -216,4 +262,4 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
 
 # Launch the interface
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    demo.queue().launch(server_name="0.0.0.0", server_port=7860)

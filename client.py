@@ -14,8 +14,11 @@ import os
 
 # Get server configuration from environment variables with defaults
 DEFAULT_HOST = os.getenv("MCP_HOST", "127.0.0.1")
-DEFAULT_PORT = int(os.getenv("MCP_PORT", "8000"))
+DEFAULT_PORT = int(os.getenv("MCP_PORT", "8001"))  # Default port updated to 8001
 DEFAULT_SERVER_URL = f"http://{DEFAULT_HOST}:{DEFAULT_PORT}"
+
+# API endpoints
+API_PREFIX = "/api"
 
 class TutorXClient:
     """Client for interacting with the TutorX MCP server"""
@@ -47,13 +50,16 @@ class TutorXClient:
         """
         await self._ensure_session()
         try:
-            async with self.session.post(
-                f"{self.server_url}/mcp/tools/{tool_name}",
-                json=params,
-                timeout=30
-            ) as response:
-                response.raise_for_status()
-                return await response.json()
+            url = f"{self.server_url}{API_PREFIX}/{tool_name}"
+            async with self.session.get(url, params=params, timeout=30) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    error = await response.text()
+                    return {
+                        "error": f"API error ({response.status}): {error}",
+                        "timestamp": datetime.now().isoformat()
+                    }
         except Exception as e:
             return {
                 "error": f"Failed to call tool: {str(e)}",
@@ -72,12 +78,19 @@ class TutorXClient:
         """
         await self._ensure_session()
         try:
-            async with self.session.get(
-                f"{self.server_url}/mcp/resources?uri={resource_uri}",
-                timeout=30
-            ) as response:
-                response.raise_for_status()
-                return await response.json()
+            # Extract the resource name from the URI (e.g., 'concept-graph' from 'concept-graph://')
+            resource_name = resource_uri.split('://')[0]
+            url = f"{self.server_url}{API_PREFIX}/{resource_name}"
+            
+            async with self.session.get(url, timeout=30) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    error = await response.text()
+                    return {
+                        "error": f"Failed to get resource: {error}",
+                        "timestamp": datetime.now().isoformat()
+                    }
         except Exception as e:
             return {
                 "error": f"Failed to get resource: {str(e)}",
@@ -94,11 +107,12 @@ class TutorXClient:
         await self._ensure_session()
         try:
             async with self.session.get(
-                f"{self.server_url}/health",
+                f"{self.server_url}{API_PREFIX}/health",
                 timeout=5
             ) as response:
                 return response.status == 200
-        except:
+        except Exception as e:
+            print(f"Server connection check failed: {str(e)}")
             return False
     
     # ------------ Core Features ------------

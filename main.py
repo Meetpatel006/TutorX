@@ -1,12 +1,16 @@
-# TutorX MCP Server
+"""
+TutorX MCP Server
+"""
 from mcp.server.fastmcp import FastMCP
 import json
 import os
 import warnings
+import uvicorn
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 # Filter out the tool registration warning
 warnings.filterwarnings("ignore", message="Tool already exists")
@@ -27,8 +31,20 @@ from utils.assessment import (
 
 # Get server configuration from environment variables with defaults
 SERVER_HOST = os.getenv("MCP_HOST", "0.0.0.0")  # Allow connections from any IP
-SERVER_PORT = int(os.getenv("MCP_PORT", "8001"))
+SERVER_PORT = int(os.getenv("MCP_PORT", "8001"))  # Changed default port to 8001
 SERVER_TRANSPORT = os.getenv("MCP_TRANSPORT", "http")
+
+# Create FastAPI app
+api_app = FastAPI(title="TutorX MCP Server", version="1.0.0")
+
+# Add CORS middleware
+api_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Create the TutorX MCP server with explicit configuration
 mcp = FastMCP(
@@ -40,8 +56,8 @@ mcp = FastMCP(
     cors_origins=["*"]  # Allow CORS from any origin
 )
 
-# Create FastAPI app
-api_app = FastAPI()
+# For FastMCP, we'll use it directly without mounting
+# as it already creates its own FastAPI app internally
 
 # ------------------ Core Features ------------------
 
@@ -136,25 +152,43 @@ async def generate_quiz(concept_ids: List[str], difficulty: int = 2) -> Dict[str
         ]
     }
 
+# API Endpoints
+@api_app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+
 @api_app.get("/api/assess_skill")
 async def assess_skill_api(student_id: str = Query(...), concept_id: str = Query(...)):
-    result = await assess_skill(student_id, concept_id)
-    return JSONResponse(content=result)
+    try:
+        result = await assess_skill(student_id, concept_id)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @api_app.post("/api/generate_quiz")
-async def generate_quiz_api(concept_ids: list[str], difficulty: int = 2):
-    result = await generate_quiz(concept_ids, difficulty)
-    return JSONResponse(content=result)
+async def generate_quiz_api(concept_ids: List[str], difficulty: int = 2):
+    try:
+        result = await generate_quiz(concept_ids, difficulty)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-# Mount FastAPI app to MCP server
+# Mount MCP app to /mcp path
 mcp.app = api_app
 
-# Function to run the server
 def run_server():
     """Run the MCP server with configured transport and port"""
     print(f"Starting TutorX MCP Server on {SERVER_HOST}:{SERVER_PORT} using {SERVER_TRANSPORT} transport...")
     try:
-        mcp.run(transport="sse")
+        # Run the MCP server directly
+        import uvicorn
+        uvicorn.run(
+            "main:mcp.app",
+            host=SERVER_HOST,
+            port=SERVER_PORT,
+            log_level="info",
+            reload=True
+        )
     except Exception as e:
         print(f"Error starting server: {str(e)}")
         raise
