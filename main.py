@@ -4,6 +4,14 @@ import json
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
+# Import utility functions for multi-modal interactions
+from utils.multimodal import (
+    process_text_query,
+    process_voice_input,
+    process_handwriting,
+    generate_speech_response
+)
+
 # Create the TutorX MCP server
 mcp = FastMCP("TutorX")
 
@@ -344,6 +352,107 @@ def update_accessibility_settings(student_id: str, settings: Dict[str, Any]) -> 
         "screen_reader_compatible": settings.get("screen_reader_compatible", True),
         "keyboard_navigation_enabled": settings.get("keyboard_navigation_enabled", True),
         "updated_at": datetime.now().isoformat()
+    }
+
+# ------------------ Multi-Modal Interaction ------------------
+
+@mcp.tool()
+def text_interaction(query: str, student_id: str, session_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """
+    Process a text query from the student
+    
+    Args:
+        query: The text query from the student
+        student_id: The student's unique identifier
+        session_context: Optional context about the current session
+        
+    Returns:
+        Processed response
+    """
+    # Add student information to context
+    context = session_context or {}
+    context["student_id"] = student_id
+    
+    return process_text_query(query, context)
+
+@mcp.tool()
+def voice_interaction(audio_data_base64: str, student_id: str) -> Dict[str, Any]:
+    """
+    Process voice input from the student
+    
+    Args:
+        audio_data_base64: Base64 encoded audio data
+        student_id: The student's unique identifier
+        
+    Returns:
+        Transcription and response
+    """
+    # Process voice input
+    result = process_voice_input(audio_data_base64)
+    
+    # Process the transcription as a text query
+    text_response = process_text_query(result["transcription"], {"student_id": student_id})
+    
+    # Generate speech response
+    speech_response = generate_speech_response(
+        text_response["response"],
+        {"voice_id": "educational_tutor"}
+    )
+    
+    # Combine results
+    return {
+        "input_transcription": result["transcription"],
+        "input_confidence": result["confidence"],
+        "detected_emotions": result.get("detected_emotions", {}),
+        "text_response": text_response["response"],
+        "speech_response": speech_response,
+        "timestamp": datetime.now().isoformat()
+    }
+
+@mcp.tool()
+def handwriting_recognition(image_data_base64: str, student_id: str) -> Dict[str, Any]:
+    """
+    Process handwritten input from the student
+    
+    Args:
+        image_data_base64: Base64 encoded image data of handwriting
+        student_id: The student's unique identifier
+        
+    Returns:
+        Transcription and analysis
+    """
+    # Process handwriting input
+    result = process_handwriting(image_data_base64)
+    
+    # If it's a math equation, solve it
+    if result["detected_content_type"] == "math_equation":
+        # In a real implementation, this would use a math engine to solve the equation
+        # For demonstration, we'll provide a simulated solution
+        if result["equation_type"] == "quadratic":
+            solution = {
+                "equation": result["transcription"],
+                "solution_steps": [
+                    "x^2 + 5x + 6 = 0",
+                    "Factor: (x + 2)(x + 3) = 0",
+                    "x + 2 = 0 or x + 3 = 0",
+                    "x = -2 or x = -3"
+                ],
+                "solutions": [-2, -3]
+            }
+        else:
+            solution = {
+                "equation": result["transcription"],
+                "note": "Solution not implemented for this equation type"
+            }
+    else:
+        solution = None
+    
+    return {
+        "transcription": result["transcription"],
+        "confidence": result["confidence"],
+        "detected_content_type": result["detected_content_type"],
+        "solution": solution,
+        "timestamp": datetime.now().isoformat()
     }
 
 if __name__ == "__main__":
