@@ -16,33 +16,36 @@
 <!-- omit in toc -->
 ## Table of Contents
 
-- [Overview](#overview)
-- [Installation](#installation)
-- [Quickstart](#quickstart)
-- [What is MCP?](#what-is-mcp)
-- [Core Concepts](#core-concepts)
-  - [Server](#server)
-  - [Resources](#resources)
-  - [Tools](#tools)
-  - [Prompts](#prompts)
-  - [Images](#images)
-  - [Context](#context)
-- [Running Your Server](#running-your-server)
-  - [Development Mode](#development-mode)
-  - [Claude Desktop Integration](#claude-desktop-integration)
-  - [Direct Execution](#direct-execution)
-  - [Mounting to an Existing ASGI Server](#mounting-to-an-existing-asgi-server)
-- [Examples](#examples)
-  - [Echo Server](#echo-server)
-  - [SQLite Explorer](#sqlite-explorer)
-- [Advanced Usage](#advanced-usage)
-  - [Low-Level Server](#low-level-server)
-  - [Writing MCP Clients](#writing-mcp-clients)
-  - [MCP Primitives](#mcp-primitives)
-  - [Server Capabilities](#server-capabilities)
-- [Documentation](#documentation)
-- [Contributing](#contributing)
-- [License](#license)
+- [MCP Python SDK](#mcp-python-sdk)
+  - [Overview](#overview)
+  - [Installation](#installation)
+    - [Adding MCP to your python project](#adding-mcp-to-your-python-project)
+    - [Running the standalone MCP development tools](#running-the-standalone-mcp-development-tools)
+  - [Quickstart](#quickstart)
+  - [What is MCP?](#what-is-mcp)
+  - [Core Concepts](#core-concepts)
+    - [Server](#server)
+    - [Resources](#resources)
+    - [Tools](#tools)
+    - [Prompts](#prompts)
+    - [Images](#images)
+    - [Context](#context)
+  - [Running Your Server](#running-your-server)
+    - [Development Mode](#development-mode)
+    - [Claude Desktop Integration](#claude-desktop-integration)
+    - [Direct Execution](#direct-execution)
+    - [Mounting to an Existing ASGI Server](#mounting-to-an-existing-asgi-server)
+  - [Examples](#examples)
+    - [Echo Server](#echo-server)
+    - [SQLite Explorer](#sqlite-explorer)
+  - [Advanced Usage](#advanced-usage)
+    - [Low-Level Server](#low-level-server)
+    - [Writing MCP Clients](#writing-mcp-clients)
+    - [MCP Primitives](#mcp-primitives)
+    - [Server Capabilities](#server-capabilities)
+  - [Documentation](#documentation)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 [pypi-badge]: https://img.shields.io/pypi/v/mcp.svg
 [pypi-url]: https://pypi.org/project/mcp/
@@ -63,22 +66,31 @@ The Model Context Protocol allows applications to provide context for LLMs in a 
 
 - Build MCP clients that can connect to any MCP server
 - Create MCP servers that expose resources, prompts and tools
-- Use standard transports like stdio and SSE
+- Use standard transports like stdio, SSE, and Streamable HTTP
 - Handle all MCP protocol messages and lifecycle events
 
 ## Installation
 
 ### Adding MCP to your python project
 
-We recommend using [uv](https://docs.astral.sh/uv/) to manage your Python projects. In a uv managed python project, add mcp to dependencies by:
+We recommend using [uv](https://docs.astral.sh/uv/) to manage your Python projects. 
 
-```bash
-uv add "mcp[cli]"
-```
+If you haven't created a uv-managed project yet, create one:
+
+   ```bash
+   uv init mcp-server-demo
+   cd mcp-server-demo
+   ```
+
+   Then add MCP to your project dependencies:
+
+   ```bash
+   uv add "mcp[cli]"
+   ```
 
 Alternatively, for projects using pip for dependencies:
 ```bash
-pip install mcp
+pip install "mcp[cli]"
 ```
 
 ### Running the standalone MCP development tools
@@ -143,12 +155,12 @@ The FastMCP server is your core interface to the MCP protocol. It handles connec
 ```python
 # Add lifespan support for startup/shutdown with strong typing
 from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import AsyncIterator
 
 from fake_database import Database  # Replace with your actual DB type
 
-from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.fastmcp import FastMCP
 
 # Create a named server
 mcp = FastMCP("My App")
@@ -180,8 +192,9 @@ mcp = FastMCP("My App", lifespan=app_lifespan)
 
 # Access type-safe lifespan context in tools
 @mcp.tool()
-def query_db(ctx: Context) -> str:
+def query_db() -> str:
     """Tool that uses initialized resources"""
+    ctx = mcp.get_context()
     db = ctx.request_context.lifespan_context["db"]
     return db.query()
 ```
@@ -297,6 +310,48 @@ async def long_task(files: list[str], ctx: Context) -> str:
     return "Processing complete"
 ```
 
+### Authentication
+
+Authentication can be used by servers that want to expose tools accessing protected resources.
+
+`mcp.server.auth` implements an OAuth 2.0 server interface, which servers can use by
+providing an implementation of the `OAuthAuthorizationServerProvider` protocol.
+
+```python
+from mcp import FastMCP
+from mcp.server.auth.provider import OAuthAuthorizationServerProvider
+from mcp.server.auth.settings import (
+    AuthSettings,
+    ClientRegistrationOptions,
+    RevocationOptions,
+)
+
+
+class MyOAuthServerProvider(OAuthAuthorizationServerProvider):
+    # See an example on how to implement at `examples/servers/simple-auth`
+    ...
+
+
+mcp = FastMCP(
+    "My App",
+    auth_server_provider=MyOAuthServerProvider(),
+    auth=AuthSettings(
+        issuer_url="https://myapp.com",
+        revocation_options=RevocationOptions(
+            enabled=True,
+        ),
+        client_registration_options=ClientRegistrationOptions(
+            enabled=True,
+            valid_scopes=["myscope", "myotherscope"],
+            default_scopes=["myscope"],
+        ),
+        required_scopes=["myscope"],
+    ),
+)
+```
+
+See [OAuthAuthorizationServerProvider](src/mcp/server/auth/provider.py) for more details.
+
 ## Running Your Server
 
 ### Development Mode
@@ -348,13 +403,97 @@ python server.py
 mcp run server.py
 ```
 
+Note that `mcp run` or `mcp dev` only supports server using FastMCP and not the low-level server variant.
+
+### Streamable HTTP Transport
+
+> **Note**: Streamable HTTP transport is superseding SSE transport for production deployments.
+
+```python
+from mcp.server.fastmcp import FastMCP
+
+# Stateful server (maintains session state)
+mcp = FastMCP("StatefulServer")
+
+# Stateless server (no session persistence)
+mcp = FastMCP("StatelessServer", stateless_http=True)
+
+# Stateless server (no session persistence, no sse stream with supported client)
+mcp = FastMCP("StatelessServer", stateless_http=True, json_response=True)
+
+# Run server with streamable_http transport
+mcp.run(transport="streamable-http")
+```
+
+You can mount multiple FastMCP servers in a FastAPI application:
+
+```python
+# echo.py
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP(name="EchoServer", stateless_http=True)
+
+
+@mcp.tool(description="A simple echo tool")
+def echo(message: str) -> str:
+    return f"Echo: {message}"
+```
+
+```python
+# math.py
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP(name="MathServer", stateless_http=True)
+
+
+@mcp.tool(description="A simple add tool")
+def add_two(n: int) -> int:
+    return n + 2
+```
+
+```python
+# main.py
+import contextlib
+from fastapi import FastAPI
+from mcp.echo import echo
+from mcp.math import math
+
+
+# Create a combined lifespan to manage both session managers
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with contextlib.AsyncExitStack() as stack:
+        await stack.enter_async_context(echo.mcp.session_manager.run())
+        await stack.enter_async_context(math.mcp.session_manager.run())
+        yield
+
+
+app = FastAPI(lifespan=lifespan)
+app.mount("/echo", echo.mcp.streamable_http_app())
+app.mount("/math", math.mcp.streamable_http_app())
+```
+
+For low level server with Streamable HTTP implementations, see:
+- Stateful server: [`examples/servers/simple-streamablehttp/`](examples/servers/simple-streamablehttp/)
+- Stateless server: [`examples/servers/simple-streamablehttp-stateless/`](examples/servers/simple-streamablehttp-stateless/)
+
+The streamable HTTP transport supports:
+- Stateful and stateless operation modes
+- Resumability with event stores
+- JSON or SSE response formats
+- Better scalability for multi-node deployments
+
 ### Mounting to an Existing ASGI Server
+
+> **Note**: SSE transport is being superseded by [Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http).
+
+By default, SSE servers are mounted at `/sse` and Streamable HTTP servers are mounted at `/mcp`. You can customize these paths using the methods described below.
 
 You can mount the SSE server to an existing ASGI server using the `sse_app` method. This allows you to integrate the SSE server with other ASGI applications.
 
 ```python
 from starlette.applications import Starlette
-from starlette.routes import Mount, Host
+from starlette.routing import Mount, Host
 from mcp.server.fastmcp import FastMCP
 
 
@@ -369,6 +508,43 @@ app = Starlette(
 
 # or dynamically mount as host
 app.router.routes.append(Host('mcp.acme.corp', app=mcp.sse_app()))
+```
+
+When mounting multiple MCP servers under different paths, you can configure the mount path in several ways:
+
+```python
+from starlette.applications import Starlette
+from starlette.routing import Mount
+from mcp.server.fastmcp import FastMCP
+
+# Create multiple MCP servers
+github_mcp = FastMCP("GitHub API")
+browser_mcp = FastMCP("Browser")
+curl_mcp = FastMCP("Curl")
+search_mcp = FastMCP("Search")
+
+# Method 1: Configure mount paths via settings (recommended for persistent configuration)
+github_mcp.settings.mount_path = "/github"
+browser_mcp.settings.mount_path = "/browser"
+
+# Method 2: Pass mount path directly to sse_app (preferred for ad-hoc mounting)
+# This approach doesn't modify the server's settings permanently
+
+# Create Starlette app with multiple mounted servers
+app = Starlette(
+    routes=[
+        # Using settings-based configuration
+        Mount("/github", app=github_mcp.sse_app()),
+        Mount("/browser", app=browser_mcp.sse_app()),
+        # Using direct mount path parameter
+        Mount("/curl", app=curl_mcp.sse_app("/curl")),
+        Mount("/search", app=search_mcp.sse_app("/search")),
+    ]
+)
+
+# Method 3: For direct execution, you can also pass the mount path to run()
+if __name__ == "__main__":
+    search_mcp.run(transport="sse", mount_path="/search")
 ```
 
 For more information on mounting applications in Starlette, see the [Starlette documentation](https://www.starlette.io/routing/#submounting-routes).
@@ -442,7 +618,7 @@ For more control, you can use the low-level server implementation directly. This
 
 ```python
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 from fake_database import Database  # Replace with your actual DB type
 
@@ -543,9 +719,11 @@ if __name__ == "__main__":
     asyncio.run(run())
 ```
 
+Caution: The `mcp run` and `mcp dev` tool doesn't support low-level server.
+
 ### Writing MCP Clients
 
-The SDK provides a high-level client interface for connecting to MCP servers:
+The SDK provides a high-level client interface for connecting to MCP servers using various [transports](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports):
 
 ```python
 from mcp import ClientSession, StdioServerParameters, types
@@ -608,6 +786,82 @@ if __name__ == "__main__":
 
     asyncio.run(run())
 ```
+
+Clients can also connect using [Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http):
+
+```python
+from mcp.client.streamable_http import streamablehttp_client
+from mcp import ClientSession
+
+
+async def main():
+    # Connect to a streamable HTTP server
+    async with streamablehttp_client("example/mcp") as (
+        read_stream,
+        write_stream,
+        _,
+    ):
+        # Create a session using the client streams
+        async with ClientSession(read_stream, write_stream) as session:
+            # Initialize the connection
+            await session.initialize()
+            # Call a tool
+            tool_result = await session.call_tool("echo", {"message": "hello"})
+```
+
+### OAuth Authentication for Clients
+
+The SDK includes [authorization support](https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization) for connecting to protected MCP servers:
+
+```python
+from mcp.client.auth import OAuthClientProvider, TokenStorage
+from mcp.client.session import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+from mcp.shared.auth import OAuthClientInformationFull, OAuthClientMetadata, OAuthToken
+
+
+class CustomTokenStorage(TokenStorage):
+    """Simple in-memory token storage implementation."""
+
+    async def get_tokens(self) -> OAuthToken | None:
+        pass
+
+    async def set_tokens(self, tokens: OAuthToken) -> None:
+        pass
+
+    async def get_client_info(self) -> OAuthClientInformationFull | None:
+        pass
+
+    async def set_client_info(self, client_info: OAuthClientInformationFull) -> None:
+        pass
+
+
+async def main():
+    # Set up OAuth authentication
+    oauth_auth = OAuthClientProvider(
+        server_url="https://api.example.com",
+        client_metadata=OAuthClientMetadata(
+            client_name="My Client",
+            redirect_uris=["http://localhost:3000/callback"],
+            grant_types=["authorization_code", "refresh_token"],
+            response_types=["code"],
+        ),
+        storage=CustomTokenStorage(),
+        redirect_handler=lambda url: print(f"Visit: {url}"),
+        callback_handler=lambda: ("auth_code", None),
+    )
+
+    # Use with streamable HTTP client
+    async with streamablehttp_client(
+        "https://api.example.com/mcp", auth=oauth_auth
+    ) as (read, write, _):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            # Authenticated session ready
+```
+
+For a complete working example, see [`examples/clients/simple-auth-client/`](examples/clients/simple-auth-client/).
+
 
 ### MCP Primitives
 

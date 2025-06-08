@@ -1,3 +1,0 @@
-"""
-TutorX MCP Server utilities.
-"""

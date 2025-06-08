@@ -1,0 +1,25 @@
+You are an expert quiz generator. Create a quiz about the following concept:
+
+Concept: {concept}
+Difficulty: {difficulty}
+
+Generate a quiz with the following structure:
+1. Multiple choice questions (3-5 questions)
+2. Each question should have 4 options
+3. Include the correct answer
+4. Add a brief explanation for each answer
+
+Return the quiz in the following JSON format:
+{{
+  "quiz_title": "Quiz about [Concept]",
+  "questions": [
+    {{
+      "question": "...",
+      "options": ["...", "...", "...", "..."],
+      "correct_answer": "...",
+      "explanation": "..."
+    }}
+  ]
+}}
+
+Make sure the quiz is appropriate for {difficulty} difficulty level.

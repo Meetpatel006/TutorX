@@ -1,130 +1,164 @@
 """
-Script to run either the MCP server or the Gradio interface
+Script to run either the MCP server or the Gradio interface for TutorX
 """
 
-import argparse
-import importlib.util
 import os
 import sys
-import time
-import subprocess
+import argparse
+import uvicorn
+from pathlib import Path
+import socket
 
-def load_module(name, path):
-    """Load a module from path"""
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-def run_mcp_server(host="0.0.0.0", port=8001, transport="http"):
-    """Run the MCP server with specified configuration"""
-    print(f"Starting TutorX MCP Server on {host}:{port} using {transport} transport...")
+def run_mcp_server(host="0.0.0.0", port=8001):
+    """
+    Run the MCP server using uvicorn
     
-    # Set environment variables for MCP server
+    Args:
+        host: Host to bind the server to
+        port: Port to run the server on
+    """
+    print(f"Starting TutorX MCP Server on {host}:{port}...")
+    
+    # Set environment variables
     os.environ["MCP_HOST"] = host
     os.environ["MCP_PORT"] = str(port)
-    os.environ["MCP_TRANSPORT"] = transport
     
-    # Import and run the main module
-    main_module = load_module("main", "main.py")
-    
-    # Access the mcp instance and run it
-    if hasattr(main_module, "run_server"):
-        main_module.run_server()
-    else:
-        print("Error: run_server function not found in main.py")
+    try:
+        # Add the mcp-server directory to Python path
+        mcp_server_dir = str(Path(__file__).parent / "mcp-server")
+        if mcp_server_dir not in sys.path:
+            sys.path.insert(0, mcp_server_dir)
+        
+        # Import the FastAPI app
+        from server import api_app
+        
+        # Run the server using uvicorn
+        uvicorn.run(
+            "mcp-server.server:api_app",
+            host=host,
+            port=port,
+            reload=True,
+            reload_dirs=[mcp_server_dir],
+            log_level="info"
+        )
+    except ImportError as e:
+        print(f"Error: {e}")
+        print("Make sure you have installed all required dependencies:")
+        print("  pip install uvicorn fastapi")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error starting MCP server: {e}")
         sys.exit(1)
 
-def run_gradio_interface():
-    """Run the Gradio interface"""
-    print("Starting TutorX Gradio Interface...")
-    app_module = load_module("app", "app.py")
+def run_gradio_interface(port=7860):
+    """
+    Run the Gradio interface
     
-    # Run the Gradio demo
-    if hasattr(app_module, "demo"):
-        app_module.demo.launch(server_name="0.0.0.0", server_port=7860)
-    else:
-        print("Error: Gradio demo not found in app.py")
+    Args:
+        port: Port to run the Gradio interface on
+    """
+    print(f"Starting TutorX Gradio Interface on port {port}...")
+    
+    try:
+        # Make sure the mcp-server directory is in the path
+        mcp_server_dir = str(Path(__file__).parent / "mcp-server")
+        if mcp_server_dir not in sys.path:
+            sys.path.insert(0, mcp_server_dir)
+            
+        # Import and run the Gradio app
+        from app import demo
+        
+        # Launch the Gradio interface
+        demo.launch(
+            server_name="0.0.0.0",
+            server_port=port,
+            share=False
+        )
+    except Exception as e:
+        print(f"Failed to start Gradio interface: {e}")
         sys.exit(1)
 
 def check_port_available(port):
-    """Check if a port is available"""
-    import socket
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        sock.bind(('127.0.0.1', port))
-        sock.close()
-        return True
-    except:
-        return False
+    """
+    Check if a port is available
+    
+    Args:
+        port: Port number to check
+        
+    Returns:
+        bool: True if port is available, False otherwise
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) != 0
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run TutorX MCP Server or Gradio Interface")
+    parser = argparse.ArgumentParser(
+        description="TutorX - Run MCP Server and/or Gradio Interface"
+    )
+    
+    # Add command line arguments
     parser.add_argument(
         "--mode", 
+        type=str, 
         choices=["mcp", "gradio", "both"], 
         default="both",
-        help="Run mode: 'mcp' for MCP server, 'gradio' for Gradio interface, 'both' for both"
+        help="Run mode: 'mcp' for MCP server, 'gradio' for Gradio interface, 'both' for both (default)"
     )
     parser.add_argument(
         "--host", 
+        type=str, 
         default="0.0.0.0",
-        help="Host address to use"
+        help="Host to bind the server to (default: 0.0.0.0)"
     )
     parser.add_argument(
-        "--port", 
-        type=int,
+        "--mcp-port", 
+        type=int, 
         default=8001,
-        help="Port to use for MCP server (default: 8001)"
+        help="Port for MCP server (default: 8001)"
     )
     parser.add_argument(
         "--gradio-port", 
-        type=int,
+        type=int, 
         default=7860,
-        help="Port to use for Gradio interface (default: 7860)"
-    )
-    parser.add_argument(
-        "--transport",
-        default="http",
-        help="Transport protocol to use (default: http)"
+        help="Port for Gradio interface (default: 7860)"
     )
     
     args = parser.parse_args()
     
-    if args.mode == "mcp":
-        if not check_port_available(args.port):
-            print(f"Warning: Port {args.port} is already in use. Trying to use the server anyway...")
-        run_mcp_server(args.host, args.port, args.transport)
-    elif args.mode == "gradio":
-        run_gradio_interface()
-    elif args.mode == "both":
-        # For 'both' mode, we'll start MCP server in a separate process
-        if not check_port_available(args.port):
-            print(f"Warning: Port {args.port} is already in use. Trying to use the server anyway...")
+    # Check if ports are available
+    if args.mode in ["mcp", "both"] and not check_port_available(args.mcp_port):
+        print(f"Error: Port {args.mcp_port} is already in use (MCP server)")
+        sys.exit(1)
+        
+    if args.mode in ["gradio", "both"] and not check_port_available(args.gradio_port):
+        print(f"Error: Port {args.gradio_port} is already in use (Gradio interface)")
+        sys.exit(1)
+    
+    try:
+        if args.mode in ["mcp", "both"]:
+            # Start MCP server in a separate process
+            mcp_process = multiprocessing.Process(
+                target=run_mcp_server,
+                kwargs={
+                    "host": args.host,
+                    "port": args.mcp_port
+                }
+            )
+            mcp_process.start()
             
-        # Start MCP server in a background process
-        mcp_process = subprocess.Popen(
-            [
-                sys.executable, 
-                "run.py", 
-                "--mode", "mcp", 
-                "--host", args.host, 
-                "--port", str(args.port),
-                "--transport", args.transport
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
+            # Give the server a moment to start
+            time.sleep(2)
         
-        # Give the MCP server a moment to start up
-        print("Starting MCP server in background...")
-        time.sleep(2)
-        
-        try:
-            # Then start Gradio interface
-            run_gradio_interface()
-        finally:
-            # Make sure to terminate the MCP server process when exiting
-            print("Shutting down MCP server...")
+        if args.mode in ["gradio", "both"]:
+            # Run Gradio in the main process
+            run_gradio_interface(port=args.gradio_port)
+            
+    except KeyboardInterrupt:
+        print("\nShutting down...")
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+    finally:
+        if 'mcp_process' in locals() and mcp_process.is_alive():
             mcp_process.terminate()
-            mcp_process.wait(timeout=5)
+            mcp_process.join(timeout=5)
