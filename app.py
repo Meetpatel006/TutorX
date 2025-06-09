@@ -427,15 +427,15 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                                             quiz_data = json.loads(item.text)
                                             return quiz_data
                                         except Exception:
-                                            return {"raw": item.text}
+                                            return {"raw_pretty": json.dumps(item.text, indent=2)}
                             if isinstance(response, dict):
                                 return response
                             if isinstance(response, str):
                                 try:
                                     return json.loads(response)
                                 except Exception:
-                                    return {"raw": response}
-                            return {"raw": str(response)}
+                                    return {"raw_pretty": json.dumps(response, indent=2)}
+                            return {"raw_pretty": json.dumps(str(response), indent=2)}
                 except Exception as e:
                     import traceback
                     return {
@@ -474,15 +474,15 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                                         lesson_data = json.loads(item.text)
                                         return lesson_data
                                     except Exception:
-                                        return {"raw": item.text}
+                                        return {"raw_pretty": json.dumps(item.text, indent=2)}
                         if isinstance(response, dict):
                             return response
                         if isinstance(response, str):
                             try:
                                 return json.loads(response)
                             except Exception:
-                                return {"raw": response}
-                        return {"raw": str(response)}
+                                return {"raw_pretty": json.dumps(response, indent=2)}
+                        return {"raw_pretty": json.dumps(str(response), indent=2)}
                 
             gen_lesson_btn.click(
                 fn=generate_lesson_async,
@@ -516,15 +516,15 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                                             lp_data = json.loads(item.text)
                                             return lp_data
                                         except Exception:
-                                            return {"raw": item.text}
+                                            return {"raw_pretty": json.dumps(item.text, indent=2)}
                             if isinstance(result, dict):
                                 return result
                             if isinstance(result, str):
                                 try:
                                     return json.loads(result)
                                 except Exception:
-                                    return {"raw": result}
-                            return {"raw": str(result)}
+                                    return {"raw_pretty": json.dumps(result, indent=2)}
+                            return {"raw_pretty": json.dumps(str(result), indent=2)}
                 except Exception as e:
                     return {"error": str(e)}
             lp_btn.click(
@@ -556,15 +556,15 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                                         data = json.loads(item.text)
                                         return data
                                     except Exception:
-                                        return {"raw": item.text}
+                                        return {"raw_pretty": json.dumps(item.text, indent=2)}
                         if isinstance(response, dict):
                             return response
                         if isinstance(response, str):
                             try:
                                 return json.loads(response)
                             except Exception:
-                                return {"raw": response}
-                        return {"raw": str(response)}
+                                return {"raw_pretty": json.dumps(response, indent=2)}
+                        return {"raw_pretty": json.dumps(str(response), indent=2)}
                 
             text_btn.click(
                 fn=text_interaction_async,
@@ -619,15 +619,15 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                                             data = json.loads(item.text)
                                             return data
                                         except Exception:
-                                            return {"raw": item.text}
+                                            return {"raw_pretty": json.dumps(item.text, indent=2)}
                             if isinstance(response, dict):
                                 return response
                             if isinstance(response, str):
                                 try:
                                     return json.loads(response)
                                 except Exception:
-                                    return {"raw": response}
-                            return {"raw": str(response)}
+                                    return {"raw_pretty": json.dumps(response, indent=2)}
+                            return {"raw_pretty": json.dumps(str(response), indent=2)}
                 except Exception as e:
                     return {"error": f"Error processing document: {str(e)}", "success": False}
             doc_ocr_btn.click(
@@ -669,15 +669,15 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                                         data = json.loads(item.text)
                                         return data
                                     except Exception:
-                                        return {"raw": item.text}
+                                        return {"raw_pretty": json.dumps(item.text, indent=2)}
                         if isinstance(response, dict):
                             return response
                         if isinstance(response, str):
                             try:
                                 return json.loads(response)
                             except Exception:
-                                return {"raw": response}
-                        return {"raw": str(response)}
+                                return {"raw_pretty": json.dumps(response, indent=2)}
+                        return {"raw_pretty": json.dumps(str(response), indent=2)}
                 
             plagiarism_btn.click(
                 fn=check_plagiarism_async,
