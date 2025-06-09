@@ -52,10 +52,21 @@ ping_task = None
 def start_ping_task():
     """Start the ping task when the Gradio app launches"""
     global ping_task
-    if ping_task is None:
-        loop = asyncio.get_event_loop()
-        ping_task = loop.create_task(start_periodic_ping())
-        print("Started periodic ping task")
+    try:
+        if ping_task is None:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                ping_task = loop.create_task(start_periodic_ping())
+                print("Started periodic ping task")
+            else:
+                print("Event loop is not running, will start ping task later")
+    except Exception as e:
+        print(f"Error starting ping task: {e}")
+
+# Only run this code when the module is executed directly
+if __name__ == "__main__" and not hasattr(gr, 'blocks'):
+    # This ensures we don't start the task when imported by Gradio
+    start_ping_task()
 
 
 
@@ -324,37 +335,42 @@ def sync_load_concept_graph(concept_id):
         return None, {"error": str(e)}, []
 
 # Create Gradio interface
-with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
-    # Start the ping task when the app loads
-    demo.load(start_ping_task)
-
-    gr.Markdown("# 📚 TutorX Educational AI Platform")
-    gr.Markdown("""
-    An adaptive, multi-modal, and collaborative AI tutoring platform built with MCP.
-    
-    This interface demonstrates the functionality of the TutorX MCP server using SSE connections.
-    """)
-    
+def create_gradio_interface():
     # Set a default student ID for the demo
     student_id = "student_12345"
     
-    with gr.Tabs() as tabs:
-        # Tab 1: Core Features
-        with gr.Tab("Core Features"):
-            with gr.Blocks() as concept_graph_tab:
-                gr.Markdown("## Concept Graph Visualization")
-                gr.Markdown("Explore relationships between educational concepts through an interactive graph visualization.")
-                
-                with gr.Row():
-                    # Left panel for controls and details
-                    with gr.Column(scale=3):
-                        with gr.Row():
-                            concept_input = gr.Textbox(
-                                label="Enter Concept",
-                                placeholder="e.g., machine_learning, calculus, quantum_physics",
-                                value="machine_learning",
-                                scale=4
-                            )
+    with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
+        # Start the ping task when the app loads
+        demo.load(
+            fn=start_ping_task,
+            inputs=None,
+            outputs=None,
+            queue=False
+        )
+        
+        # Interface content
+        gr.Markdown("# 📚 TutorX Educational AI Platform")
+        gr.Markdown("""
+        An adaptive, multi-modal, and collaborative AI tutoring platform built with MCP.
+        """)
+        
+        with gr.Tabs() as tabs:
+            # Tab 1: Core Features
+            with gr.Tab("Core Features"):
+                with gr.Blocks() as concept_graph_tab:
+                    gr.Markdown("## Concept Graph Visualization")
+                    gr.Markdown("Explore relationships between educational concepts through an interactive graph visualization.")
+                    
+                    with gr.Row():
+                        # Left panel for controls and details
+                        with gr.Column(scale=3):
+                            with gr.Row():
+                                concept_input = gr.Textbox(
+                                    label="Enter Concept",
+                                    placeholder="e.g., machine_learning, calculus, quantum_physics",
+                                    value="machine_learning",
+                                    scale=4
+                                )
                             load_btn = gr.Button("Load Graph", variant="primary", scale=1)
                         
                         # Concept details
@@ -717,7 +733,10 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 inputs=[submission_input, reference_input],
                 outputs=[plagiarism_output]
             )
+        
+        return demo
 
 # Launch the interface
 if __name__ == "__main__":
+    demo = create_gradio_interface()
     demo.queue().launch(server_name="0.0.0.0", server_port=7860)
