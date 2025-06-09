@@ -24,7 +24,7 @@ from mcp.client.session import ClientSession
 from mcp.types import TextContent, CallToolResult
 
 # Server configuration
-SERVER_URL = "http://localhost:8000/sse"  # Ensure this is the SSE endpoint
+SERVER_URL = "https://tutorx-mcp.onrender.com/sse"  # Ensure this is the SSE endpoint
 
 # Utility functions
 
