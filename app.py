@@ -46,8 +46,17 @@ async def start_periodic_ping(interval_minutes: int = 10) -> None:
         await ping_mcp_server()
         await asyncio.sleep(interval_minutes * 60)
 
-# Start the periodic ping task when the module loads
-ping_task = asyncio.create_task(start_periodic_ping())
+# Store the ping task reference
+ping_task = None
+
+def start_ping_task():
+    """Start the ping task when the Gradio app launches"""
+    global ping_task
+    if ping_task is None:
+        loop = asyncio.get_event_loop()
+        ping_task = loop.create_task(start_periodic_ping())
+        print("Started periodic ping task")
+
 
 
 async def load_concept_graph(concept_id: str = None) -> Tuple[Optional[plt.Figure], Dict, List]:
@@ -316,6 +325,9 @@ def sync_load_concept_graph(concept_id):
 
 # Create Gradio interface
 with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
+    # Start the ping task when the app loads
+    demo.load(start_ping_task)
+
     gr.Markdown("# 📚 TutorX Educational AI Platform")
     gr.Markdown("""
     An adaptive, multi-modal, and collaborative AI tutoring platform built with MCP.
