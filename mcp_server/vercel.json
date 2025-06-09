@@ -2,17 +2,17 @@
     "version": 2,
     "builds": [
         {
-            "src": "./vercel_server.py",
+            "src": "./server.py",
             "use": "@vercel/python",
             "config": {
-                "pip": ["--requirement", "vercel_requirements.txt"]
+                "pip": ["--requirement", "requirements.txt"]
             }
         }
     ],
     "routes": [
         {
             "src": "/(.*)",
-            "dest": "/vercel_server.py"
+            "dest": "/server.py"
         }
     ]
 }
