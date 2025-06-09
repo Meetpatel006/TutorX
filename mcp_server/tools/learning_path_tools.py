@@ -8,19 +8,11 @@ import sys
 import os
 from pathlib import Path
 import json
+import re
 
 # Add the parent directory to the Python path
 current_dir = Path(__file__).parent
 parent_dir = current_dir.parent.parent
-sys.path.insert(0, str(parent_dir))
-
-import sys
-import os
-from pathlib import Path
-
-# Add the parent directory to the Python path
-current_dir = Path(__file__).parent
-parent_dir = current_dir.parent
 sys.path.insert(0, str(parent_dir))
 
 # Import from local resources
@@ -146,6 +138,20 @@ def generate_learning_path(concept_ids: List[str], student_level: str = "beginne
         "generated_at": datetime.utcnow().isoformat() + "Z"
     }
 
+def clean_json_trailing_commas(json_text: str) -> str:
+    return re.sub(r',([ \t\r\n]*[}}\]])', r'\1', json_text)
+
+def extract_json_from_text(text: str):
+    if not text or not isinstance(text, str):
+        return None
+    # Remove code fences
+    text = re.sub(r'^\s*```(?:json)?\s*', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\s*```\s*$', '', text, flags=re.IGNORECASE)
+    text = text.strip()
+    # Remove trailing commas
+    cleaned = clean_json_trailing_commas(text)
+    return json.loads(cleaned)
+
 @mcp.tool()
 async def get_learning_path(student_id: str, concept_ids: list, student_level: str = "beginner") -> dict:
     """
@@ -158,7 +164,7 @@ async def get_learning_path(student_id: str, concept_ids: list, student_level: s
     )
     llm_response = await MODEL.generate_text(prompt)
     try:
-        data = json.loads(llm_response)
+        data = extract_json_from_text(llm_response)
     except Exception:
         data = {"llm_raw": llm_response, "error": "Failed to parse LLM output as JSON"}
     return data

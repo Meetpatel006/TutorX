@@ -8,6 +8,22 @@ import json
 
 MODEL = GeminiFlash()
 
+def clean_json_trailing_commas(json_text: str) -> str:
+    import re
+    return re.sub(r',([ \t\r\n]*[}}\]])', r'\1', json_text)
+
+def extract_json_from_text(text: str):
+    import re, json
+    if not text or not isinstance(text, str):
+        return None
+    # Remove code fences
+    text = re.sub(r'^\s*```(?:json)?\s*', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\s*```\s*$', '', text, flags=re.IGNORECASE)
+    text = text.strip()
+    # Remove trailing commas
+    cleaned = clean_json_trailing_commas(text)
+    return json.loads(cleaned)
+
 @mcp.tool()
 async def generate_lesson_tool(topic: str, grade_level: int, duration_minutes: int) -> dict:
     """
@@ -20,7 +36,7 @@ async def generate_lesson_tool(topic: str, grade_level: int, duration_minutes: i
     )
     llm_response = await MODEL.generate_text(prompt)
     try:
-        data = json.loads(llm_response)
+        data = extract_json_from_text(llm_response)
     except Exception:
         data = {"llm_raw": llm_response, "error": "Failed to parse LLM output as JSON"}
     return data

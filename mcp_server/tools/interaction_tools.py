@@ -14,6 +14,20 @@ def calculate_similarity(text1: str, text2: str) -> float:
     """Calculate the similarity ratio between two texts."""
     return 0.0  # No longer used, LLM-driven
 
+def clean_json_trailing_commas(json_text: str) -> str:
+    return re.sub(r',([ \t\r\n]*[}}\]])', r'\1', json_text)
+
+def extract_json_from_text(text: str):
+    if not text or not isinstance(text, str):
+        return None
+    # Remove code fences
+    text = re.sub(r'^\s*```(?:json)?\s*', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\s*```\s*$', '', text, flags=re.IGNORECASE)
+    text = text.strip()
+    # Remove trailing commas
+    cleaned = clean_json_trailing_commas(text)
+    return json.loads(cleaned)
+
 @mcp.tool()
 async def text_interaction(query: str, student_id: str) -> dict:
     """
@@ -26,7 +40,7 @@ async def text_interaction(query: str, student_id: str) -> dict:
     )
     llm_response = await MODEL.generate_text(prompt)
     try:
-        data = json.loads(llm_response)
+        data = extract_json_from_text(llm_response)
     except Exception:
         data = {"llm_raw": llm_response, "error": "Failed to parse LLM output as JSON"}
     return data

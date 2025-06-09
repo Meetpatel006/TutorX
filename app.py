@@ -420,7 +420,6 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                         async with ClientSession(sse, write) as session:
                             await session.initialize()
                             response = await session.call_tool("generate_quiz_tool", {"concept": concept.strip(), "difficulty": difficulty_str})
-                            # --- PATCH: Parse quiz JSON for pretty display ---
                             if hasattr(response, 'content') and isinstance(response.content, list):
                                 for item in response.content:
                                     if hasattr(item, 'text') and item.text:
@@ -468,7 +467,22 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                     async with ClientSession(sse, write) as session:
                         await session.initialize()
                         response = await session.call_tool("generate_lesson_tool", {"topic": topic, "grade_level": grade, "duration_minutes": duration})
-                        return response
+                        if hasattr(response, 'content') and isinstance(response.content, list):
+                            for item in response.content:
+                                if hasattr(item, 'text') and item.text:
+                                    try:
+                                        lesson_data = json.loads(item.text)
+                                        return lesson_data
+                                    except Exception:
+                                        return {"raw": item.text}
+                        if isinstance(response, dict):
+                            return response
+                        if isinstance(response, str):
+                            try:
+                                return json.loads(response)
+                            except Exception:
+                                return {"raw": response}
+                        return {"raw": str(response)}
                 
             gen_lesson_btn.click(
                 fn=generate_lesson_async,
@@ -495,7 +509,22 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                                 "concept_ids": [c.strip() for c in concept_ids.split(",") if c.strip()],
                                 "student_level": student_level
                             })
-                            return result
+                            if hasattr(result, 'content') and isinstance(result.content, list):
+                                for item in result.content:
+                                    if hasattr(item, 'text') and item.text:
+                                        try:
+                                            lp_data = json.loads(item.text)
+                                            return lp_data
+                                        except Exception:
+                                            return {"raw": item.text}
+                            if isinstance(result, dict):
+                                return result
+                            if isinstance(result, str):
+                                try:
+                                    return json.loads(result)
+                                except Exception:
+                                    return {"raw": result}
+                            return {"raw": str(result)}
                 except Exception as e:
                     return {"error": str(e)}
             lp_btn.click(
@@ -520,7 +549,22 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                     async with ClientSession(sse, write) as session:
                         await session.initialize()
                         response = await session.call_tool("text_interaction", {"query": text, "student_id": student_id})
-                        return response
+                        if hasattr(response, 'content') and isinstance(response.content, list):
+                            for item in response.content:
+                                if hasattr(item, 'text') and item.text:
+                                    try:
+                                        data = json.loads(item.text)
+                                        return data
+                                    except Exception:
+                                        return {"raw": item.text}
+                        if isinstance(response, dict):
+                            return response
+                        if isinstance(response, str):
+                            try:
+                                return json.loads(response)
+                            except Exception:
+                                return {"raw": response}
+                        return {"raw": str(response)}
                 
             text_btn.click(
                 fn=text_interaction_async,
@@ -558,23 +602,32 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                         file_path = file
                     if not file_path or not os.path.exists(file_path):
                         return {"error": "File not found", "success": False}
-                    
-                    # Upload file to storage API
                     upload_result = await upload_file_to_storage(file_path)
                     if not upload_result.get("success"):
                         return upload_result
-                    
-                    # Get the storage URL from the upload response
                     storage_url = upload_result.get("storage_url")
                     if not storage_url:
                         return {"error": "No storage URL returned from upload", "success": False}
-                    
-                    # Use the storage URL for OCR processing
                     async with sse_client(SERVER_URL) as (sse, write):
                         async with ClientSession(sse, write) as session:
                             await session.initialize()
                             response = await session.call_tool("mistral_document_ocr", {"document_url": storage_url})
-                            return response
+                            if hasattr(response, 'content') and isinstance(response.content, list):
+                                for item in response.content:
+                                    if hasattr(item, 'text') and item.text:
+                                        try:
+                                            data = json.loads(item.text)
+                                            return data
+                                        except Exception:
+                                            return {"raw": item.text}
+                            if isinstance(response, dict):
+                                return response
+                            if isinstance(response, str):
+                                try:
+                                    return json.loads(response)
+                                except Exception:
+                                    return {"raw": response}
+                            return {"raw": str(response)}
                 except Exception as e:
                     return {"error": f"Error processing document: {str(e)}", "success": False}
             doc_ocr_btn.click(
@@ -609,7 +662,22 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                     async with ClientSession(sse, write) as session:
                         await session.initialize()
                         response = await session.call_tool("check_submission_originality", {"submission": submission, "reference_sources": [reference] if isinstance(reference, str) else reference})
-                        return response
+                        if hasattr(response, 'content') and isinstance(response.content, list):
+                            for item in response.content:
+                                if hasattr(item, 'text') and item.text:
+                                    try:
+                                        data = json.loads(item.text)
+                                        return data
+                                    except Exception:
+                                        return {"raw": item.text}
+                        if isinstance(response, dict):
+                            return response
+                        if isinstance(response, str):
+                            try:
+                                return json.loads(response)
+                            except Exception:
+                                return {"raw": response}
+                        return {"raw": str(response)}
                 
             plagiarism_btn.click(
                 fn=check_plagiarism_async,

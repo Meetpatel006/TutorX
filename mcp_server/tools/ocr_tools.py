@@ -140,3 +140,19 @@ Document:
             "error": f"Error processing document with Mistral OCR: {str(e)}",
             "document_url": document_url
         }
+
+def clean_json_trailing_commas(json_text: str) -> str:
+    import re
+    return re.sub(r',([ \t\r\n]*[}}\]])', r'\1', json_text)
+
+def extract_json_from_text(text: str):
+    import re, json
+    if not text or not isinstance(text, str):
+        return None
+    # Remove code fences
+    text = re.sub(r'^\s*```(?:json)?\s*', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\s*```\s*$', '', text, flags=re.IGNORECASE)
+    text = text.strip()
+    # Remove trailing commas
+    cleaned = clean_json_trailing_commas(text)
+    return json.loads(cleaned)
