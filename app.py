@@ -6,15 +6,11 @@ import os
 import json
 import asyncio
 import gradio as gr
-from typing import Optional, Dict, Any, List, Union, Tuple, Callable
+from typing import Optional, Dict,  List, Tuple
 import requests
-import tempfile
-import base64
-import re
 import networkx as nx
 import matplotlib
 import matplotlib.pyplot as plt
-import time
 from datetime import datetime
 
 # Set matplotlib to use 'Agg' backend to avoid GUI issues in Gradio
@@ -23,7 +19,6 @@ matplotlib.use('Agg')
 # Import MCP client components
 from mcp.client.sse import sse_client
 from mcp.client.session import ClientSession
-from mcp.types import TextContent, CallToolResult
 
 # Server configuration
 SERVER_URL = "https://tutorx-mcp.onrender.com/sse"  # Ensure this is the SSE endpoint
@@ -49,13 +44,67 @@ async def start_periodic_ping(interval_minutes: int = 10) -> None:
 # Store the ping task reference
 ping_task = None
 
+async def check_plagiarism_async(submission, reference):
+    """Check submission for plagiarism against reference sources"""
+    async with sse_client(SERVER_URL) as (sse, write):
+        async with ClientSession(sse, write) as session:
+            await session.initialize()
+            response = await session.call_tool(
+                "check_submission_originality", 
+                {
+                    "submission": submission, 
+                    "reference_sources": [reference] if isinstance(reference, str) else reference
+                }
+            )
+            if hasattr(response, 'content') and isinstance(response.content, list):
+                for item in response.content:
+                    if hasattr(item, 'text') and item.text:
+                        try:
+                            data = json.loads(item.text)
+                            return data
+                        except Exception:
+                            return {"raw_pretty": json.dumps(item.text, indent=2)}
+            if isinstance(response, dict):
+                return response
+            if isinstance(response, str):
+                try:
+                    return json.loads(response)
+                except Exception:
+                    return {"raw_pretty": json.dumps(response, indent=2)}
+            return {"raw_pretty": json.dumps(str(response), indent=2)}
+
 def start_ping_task():
     """Start the ping task when the Gradio app launches"""
     global ping_task
-    if ping_task is None:
-        loop = asyncio.get_event_loop()
-        ping_task = loop.create_task(start_periodic_ping())
-        print("Started periodic ping task")
+    try:
+        if ping_task is None:
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+            if loop.is_running():
+                ping_task = loop.create_task(start_periodic_ping())
+                print("Started periodic ping task")
+            else:
+                # If loop is not running, we'll start it in a separate thread
+                import threading
+                def start_loop():
+                    asyncio.set_event_loop(loop)
+                    loop.run_forever()
+                
+                thread = threading.Thread(target=start_loop, daemon=True)
+                thread.start()
+                ping_task = asyncio.run_coroutine_threadsafe(start_periodic_ping(), loop)
+                print("Started periodic ping task in new thread")
+    except Exception as e:
+        print(f"Error starting ping task: {e}")
+
+# Only run this code when the module is executed directly
+if __name__ == "__main__" and not hasattr(gr, 'blocks'):
+    # This ensures we don't start the task when imported by Gradio
+    start_ping_task()
 
 
 
@@ -323,28 +372,206 @@ def sync_load_concept_graph(concept_id):
     except Exception as e:
         return None, {"error": str(e)}, []
 
-# Create Gradio interface
-with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
-    # Start the ping task when the app loads
-    demo.load(start_ping_task)
+# Define async functions outside the interface
+async def on_generate_quiz(concept, difficulty):
+    try:
+        if not concept or not str(concept).strip():
+            return {"error": "Please enter a concept"}
+        try:
+            difficulty = int(float(difficulty))
+            difficulty = max(1, min(5, difficulty))
+        except (ValueError, TypeError):
+            difficulty = 3
+        if difficulty <= 2:
+            difficulty_str = "easy"
+        elif difficulty == 3:
+            difficulty_str = "medium"
+        else:
+            difficulty_str = "hard"
+        async with sse_client(SERVER_URL) as (sse, write):
+            async with ClientSession(sse, write) as session:
+                await session.initialize()
+                response = await session.call_tool("generate_quiz_tool", {"concept": concept.strip(), "difficulty": difficulty_str})
+                if hasattr(response, 'content') and isinstance(response.content, list):
+                    for item in response.content:
+                        if hasattr(item, 'text') and item.text:
+                            try:
+                                quiz_data = json.loads(item.text)
+                                return quiz_data
+                            except Exception:
+                                return {"raw_pretty": json.dumps(item.text, indent=2)}
+                if isinstance(response, dict):
+                    return response
+                if isinstance(response, str):
+                    try:
+                        return json.loads(response)
+                    except Exception:
+                        return {"raw_pretty": json.dumps(response, indent=2)}
+                return {"raw_pretty": json.dumps(str(response), indent=2)}
+    except Exception as e:
+        import traceback
+        return {
+            "error": f"Error generating quiz: {str(e)}\n\n{traceback.format_exc()}"
+        }
 
-    gr.Markdown("# 📚 TutorX Educational AI Platform")
-    gr.Markdown("""
-    An adaptive, multi-modal, and collaborative AI tutoring platform built with MCP.
-    
-    This interface demonstrates the functionality of the TutorX MCP server using SSE connections.
-    """)
-    
+async def generate_lesson_async(topic, grade, duration):
+    async with sse_client(SERVER_URL) as (sse, write):
+        async with ClientSession(sse, write) as session:
+            await session.initialize()
+            response = await session.call_tool("generate_lesson_tool", {"topic": topic, "grade_level": grade, "duration_minutes": duration})
+            if hasattr(response, 'content') and isinstance(response.content, list):
+                for item in response.content:
+                    if hasattr(item, 'text') and item.text:
+                        try:
+                            lesson_data = json.loads(item.text)
+                            return lesson_data
+                        except Exception:
+                            return {"raw_pretty": json.dumps(item.text, indent=2)}
+            if isinstance(response, dict):
+                return response
+            if isinstance(response, str):
+                try:
+                    return json.loads(response)
+                except Exception:
+                    return {"raw_pretty": json.dumps(response, indent=2)}
+            return {"raw_pretty": json.dumps(str(response), indent=2)}
+
+async def on_generate_learning_path(student_id, concept_ids, student_level):
+    try:
+        async with sse_client(SERVER_URL) as (sse, write):
+            async with ClientSession(sse, write) as session:
+                await session.initialize()
+                result = await session.call_tool("get_learning_path", {
+                    "student_id": student_id,
+                    "concept_ids": [c.strip() for c in concept_ids.split(",") if c.strip()],
+                    "student_level": student_level
+                })
+                if hasattr(result, 'content') and isinstance(result.content, list):
+                    for item in result.content:
+                        if hasattr(item, 'text') and item.text:
+                            try:
+                                lp_data = json.loads(item.text)
+                                return lp_data
+                            except Exception:
+                                return {"raw_pretty": json.dumps(item.text, indent=2)}
+                if isinstance(result, dict):
+                    return result
+                if isinstance(result, str):
+                    try:
+                        return json.loads(result)
+                    except Exception:
+                        return {"raw_pretty": json.dumps(result, indent=2)}
+                return {"raw_pretty": json.dumps(str(result), indent=2)}
+    except Exception as e:
+        return {"error": str(e)}
+
+async def text_interaction_async(text, student_id):
+    async with sse_client(SERVER_URL) as (sse, write):
+        async with ClientSession(sse, write) as session:
+            await session.initialize()
+            response = await session.call_tool("text_interaction", {"query": text, "student_id": student_id})
+            if hasattr(response, 'content') and isinstance(response.content, list):
+                for item in response.content:
+                    if hasattr(item, 'text') and item.text:
+                        try:
+                            data = json.loads(item.text)
+                            return data
+                        except Exception:
+                            return {"raw_pretty": json.dumps(item.text, indent=2)}
+            if isinstance(response, dict):
+                return response
+            if isinstance(response, str):
+                try:
+                    return json.loads(response)
+                except Exception:
+                    return {"raw_pretty": json.dumps(response, indent=2)}
+            return {"raw_pretty": json.dumps(str(response), indent=2)}
+
+async def upload_file_to_storage(file_path):
+    """Helper function to upload file to storage API"""
+    try:
+        url = "https://storage-bucket-api.vercel.app/upload"
+        with open(file_path, 'rb') as f:
+            files = {'file': (os.path.basename(file_path), f)}
+            response = requests.post(url, files=files)
+            response.raise_for_status()
+            return response.json()
+    except Exception as e:
+        return {"error": f"Error uploading file to storage: {str(e)}", "success": False}
+
+async def document_ocr_async(file):
+    if not file:
+        return {"error": "No file provided", "success": False}
+    try:
+        if isinstance(file, dict):
+            file_path = file.get("path", "")
+        else:
+            file_path = file
+        if not file_path or not os.path.exists(file_path):
+            return {"error": "File not found", "success": False}
+        upload_result = await upload_file_to_storage(file_path)
+        if not upload_result.get("success"):
+            return upload_result
+        storage_url = upload_result.get("storage_url")
+        if not storage_url:
+            return {"error": "No storage URL returned from upload", "success": False}
+        async with sse_client(SERVER_URL) as (sse, write):
+            async with ClientSession(sse, write) as session:
+                await session.initialize()
+                response = await session.call_tool("mistral_document_ocr", {"document_url": storage_url})
+                if hasattr(response, 'content') and isinstance(response.content, list):
+                    for item in response.content:
+                        if hasattr(item, 'text') and item.text:
+                            try:
+                                data = json.loads(item.text)
+                                return data
+                            except Exception:
+                                return {"raw_pretty": json.dumps(item.text, indent=2)}
+                if isinstance(response, dict):
+                    return response
+                if isinstance(response, str):
+                    try:
+                        return json.loads(response)
+                    except Exception:
+                        return {"raw_pretty": json.dumps(response, indent=2)}
+                return {"raw_pretty": json.dumps(str(response), indent=2)}
+    except Exception as e:
+        return {"error": f"Error processing document: {str(e)}", "success": False}
+
+# Create Gradio interface
+def create_gradio_interface():
     # Set a default student ID for the demo
     student_id = "student_12345"
-    
-    with gr.Tabs() as tabs:
-        # Tab 1: Core Features
-        with gr.Tab("Core Features"):
-            with gr.Blocks() as concept_graph_tab:
-                gr.Markdown("## Concept Graph Visualization")
-                gr.Markdown("Explore relationships between educational concepts through an interactive graph visualization.")
-                
+
+    with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
+        # Start the ping task when the app loads
+        demo.load(
+            fn=start_ping_task,
+            inputs=None,
+            outputs=None,
+            queue=False
+        )
+
+        # Header Section
+        with gr.Row():
+            with gr.Column():
+                gr.Markdown("""
+                # 📚 TutorX Educational AI Platform
+                *An adaptive, multi-modal, and collaborative AI tutoring platform built with MCP.*
+                """)
+
+        # Add some spacing
+        gr.Markdown("---")
+
+        # Main Tabs with scrollable container
+        with gr.Tabs() as tabs:
+            # Tab 1: Core Features
+            with gr.Tab("1️⃣ Core Features", elem_id="core_features_tab"):
+                with gr.Row():
+                    with gr.Column():
+                        gr.Markdown("## 🔍 Concept Graph Visualization")
+                        gr.Markdown("Explore relationships between educational concepts through an interactive graph visualization.")
+
                 with gr.Row():
                     # Left panel for controls and details
                     with gr.Column(scale=3):
@@ -355,15 +582,15 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                                 value="machine_learning",
                                 scale=4
                             )
-                            load_btn = gr.Button("Load Graph", variant="primary", scale=1)
-                        
+                        load_btn = gr.Button("Load Graph", variant="primary", scale=1)
+
                         # Concept details
                         with gr.Accordion("Concept Details", open=True):
                             concept_details = gr.JSON(
                                 label=None,
                                 show_label=False
                             )
-                        
+
                         # Related concepts and prerequisites
                         with gr.Accordion("Related Concepts & Prerequisites", open=True):
                             related_concepts = gr.Dataframe(
@@ -371,30 +598,30 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                                 datatype=["str", "str", "str"],
                                 interactive=False,
                                 wrap=True,
-                                # max_height=300,  # Fixed height with scroll in Gradio 5.x
-                                # overflow_row_behaviour="paginate"
                             )
-                    
-                    # Graph visualization
+
+                    # Graph visualization with a card-like container
                     with gr.Column(scale=7):
-                        graph_plot = gr.Plot(
-                            label="Concept Graph",
-                            show_label=True,
-                            container=True
-                        )
-                
+                        with gr.Group():
+                            graph_plot = gr.Plot(
+                                label="Concept Graph",
+                                show_label=True,
+                                container=True
+                            )
+
                 # Event handlers
                 load_btn.click(
                     fn=sync_load_concept_graph,
                     inputs=[concept_input],
                     outputs=[graph_plot, concept_details, related_concepts]
                 )
-                
+
                 # Load initial graph
                 demo.load(
                     fn=lambda: sync_load_concept_graph("machine_learning"),
                     outputs=[graph_plot, concept_details, related_concepts]
                 )
+
                 # Help text and examples
                 with gr.Row():
                     gr.Markdown("""
@@ -404,320 +631,174 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                     - `calculus`
                     - `quantum_physics`
                     """)
-                
-                # Error display (leave in UI, but not wired up)
-                error_output = gr.Textbox(
-                    label="Error Messages",
-                    visible=False,
-                    interactive=False
+
+                # Add some spacing between sections
+                gr.Markdown("---")
+
+                # Assessment Generation Section
+                with gr.Row():
+                    with gr.Column():
+                        gr.Markdown("## 📝 Assessment Generation")
+                        gr.Markdown("Create customized quizzes and assessments based on educational concepts.")
+                gr.Markdown("---")
+
+                with gr.Row():
+                    with gr.Column():
+                        quiz_concept_input = gr.Textbox(
+                            label="Enter Concept",
+                            placeholder="e.g., Linear Equations, Photosynthesis, World War II",
+                            lines=2
+                        )
+                        with gr.Row():
+                            diff_input = gr.Slider(
+                                minimum=1,
+                                maximum=5,
+                                value=2,
+                                step=1,
+                                label="Difficulty Level",
+                                interactive=True
+                            )
+                            gen_quiz_btn = gr.Button("Generate Quiz", variant="primary")
+
+                    with gr.Column():
+                        with gr.Group():
+                            quiz_output = gr.JSON(label="Generated Quiz", show_label=True, container=True)
+
+                # Connect quiz generation button
+                gen_quiz_btn.click(
+                    fn=on_generate_quiz,
+                    inputs=[quiz_concept_input, diff_input],
+                    outputs=[quiz_output],
+                    api_name="generate_quiz"
                 )
             
-            gr.Markdown("## Assessment Generation")
-            with gr.Row():
-                with gr.Column():
-                    concept_input = gr.Textbox(
-                        label="Enter Concept",
-                        placeholder="e.g., Linear Equations, Photosynthesis, World War II",
-                        lines=2
-                    )
-                    with gr.Row():
-                        diff_input = gr.Slider(
-                            minimum=1, 
-                            maximum=5, 
-                            value=2, 
-                            step=1, 
-                            label="Difficulty Level",
-                            interactive=True
-                        )
-                        gen_quiz_btn = gr.Button("Generate Quiz", variant="primary")
-                
-                with gr.Column():
-                    quiz_output = gr.JSON(label="Generated Quiz")
-            
-            async def on_generate_quiz(concept, difficulty):
-                try:
-                    if not concept or not str(concept).strip():
-                        return {"error": "Please enter a concept"}
-                    try:
-                        difficulty = int(float(difficulty))
-                        difficulty = max(1, min(5, difficulty))
-                    except (ValueError, TypeError):
-                        difficulty = 3
-                    if difficulty <= 2:
-                        difficulty_str = "easy"
-                    elif difficulty == 3:
-                        difficulty_str = "medium"
-                    else:
-                        difficulty_str = "hard"
-                    async with sse_client(SERVER_URL) as (sse, write):
-                        async with ClientSession(sse, write) as session:
-                            await session.initialize()
-                            response = await session.call_tool("generate_quiz_tool", {"concept": concept.strip(), "difficulty": difficulty_str})
-                            if hasattr(response, 'content') and isinstance(response.content, list):
-                                for item in response.content:
-                                    if hasattr(item, 'text') and item.text:
-                                        try:
-                                            quiz_data = json.loads(item.text)
-                                            return quiz_data
-                                        except Exception:
-                                            return {"raw_pretty": json.dumps(item.text, indent=2)}
-                            if isinstance(response, dict):
-                                return response
-                            if isinstance(response, str):
-                                try:
-                                    return json.loads(response)
-                                except Exception:
-                                    return {"raw_pretty": json.dumps(response, indent=2)}
-                            return {"raw_pretty": json.dumps(str(response), indent=2)}
-                except Exception as e:
-                    import traceback
-                    return {
-                        "error": f"Error generating quiz: {str(e)}\n\n{traceback.format_exc()}"
-                    }
-                
-            gen_quiz_btn.click(
-                fn=on_generate_quiz,
-                inputs=[concept_input, diff_input],
-                outputs=[quiz_output],
-                api_name="generate_quiz"
-            )
-        
-        # Tab 2: Advanced Features
-        with gr.Tab("Advanced Features"):
-            gr.Markdown("## Lesson Generation")
-            
-            with gr.Row():
-                with gr.Column():
-                    topic_input = gr.Textbox(label="Lesson Topic", value="Solving Quadratic Equations")
-                    grade_input = gr.Slider(minimum=1, maximum=12, value=9, step=1, label="Grade Level")
-                    duration_input = gr.Slider(minimum=15, maximum=90, value=45, step=5, label="Duration (minutes)")
-                    gen_lesson_btn = gr.Button("Generate Lesson Plan")
-                
-                with gr.Column():
-                    lesson_output = gr.JSON(label="Lesson Plan")
-            async def generate_lesson_async(topic, grade, duration):
-                async with sse_client(SERVER_URL) as (sse, write):
-                    async with ClientSession(sse, write) as session:
-                        await session.initialize()
-                        response = await session.call_tool("generate_lesson_tool", {"topic": topic, "grade_level": grade, "duration_minutes": duration})
-                        if hasattr(response, 'content') and isinstance(response.content, list):
-                            for item in response.content:
-                                if hasattr(item, 'text') and item.text:
-                                    try:
-                                        lesson_data = json.loads(item.text)
-                                        return lesson_data
-                                    except Exception:
-                                        return {"raw_pretty": json.dumps(item.text, indent=2)}
-                        if isinstance(response, dict):
-                            return response
-                        if isinstance(response, str):
-                            try:
-                                return json.loads(response)
-                            except Exception:
-                                return {"raw_pretty": json.dumps(response, indent=2)}
-                        return {"raw_pretty": json.dumps(str(response), indent=2)}
-                
-            gen_lesson_btn.click(
-                fn=generate_lesson_async,
-                inputs=[topic_input, grade_input, duration_input],
-                outputs=[lesson_output]
-            )
-            
-            gr.Markdown("## Learning Path Generation")
-            with gr.Row():
-                with gr.Column():
-                    lp_student_id = gr.Textbox(label="Student ID", value=student_id)
-                    lp_concept_ids = gr.Textbox(label="Concept IDs (comma-separated)", placeholder="e.g., python,functions,oop")
-                    lp_student_level = gr.Dropdown(choices=["beginner", "intermediate", "advanced"], value="beginner", label="Student Level")
-                    lp_btn = gr.Button("Generate Learning Path")
-                with gr.Column():
-                    lp_output = gr.JSON(label="Learning Path")
-            async def on_generate_learning_path(student_id, concept_ids, student_level):
-                try:
-                    async with sse_client(SERVER_URL) as (sse, write):
-                        async with ClientSession(sse, write) as session:
-                            await session.initialize()
-                            result = await session.call_tool("get_learning_path", {
-                                "student_id": student_id,
-                                "concept_ids": [c.strip() for c in concept_ids.split(",") if c.strip()],
-                                "student_level": student_level
-                            })
-                            if hasattr(result, 'content') and isinstance(result.content, list):
-                                for item in result.content:
-                                    if hasattr(item, 'text') and item.text:
-                                        try:
-                                            lp_data = json.loads(item.text)
-                                            return lp_data
-                                        except Exception:
-                                            return {"raw_pretty": json.dumps(item.text, indent=2)}
-                            if isinstance(result, dict):
-                                return result
-                            if isinstance(result, str):
-                                try:
-                                    return json.loads(result)
-                                except Exception:
-                                    return {"raw_pretty": json.dumps(result, indent=2)}
-                            return {"raw_pretty": json.dumps(str(result), indent=2)}
-                except Exception as e:
-                    return {"error": str(e)}
-            lp_btn.click(
-                fn=on_generate_learning_path,
-                inputs=[lp_student_id, lp_concept_ids, lp_student_level],
-                outputs=[lp_output]
-            )
-        
-        # Tab 3: Multi-Modal Interaction
-        with gr.Tab("Multi-Modal Interaction"):
-            gr.Markdown("## Text Interaction")
-            
-            with gr.Row():
-                with gr.Column():
-                    text_input = gr.Textbox(label="Ask a Question", value="How do I solve a quadratic equation?")
-                    text_btn = gr.Button("Submit")
-                
-                with gr.Column():
-                    text_output = gr.JSON(label="Response")
-            async def text_interaction_async(text):
-                async with sse_client(SERVER_URL) as (sse, write):
-                    async with ClientSession(sse, write) as session:
-                        await session.initialize()
-                        response = await session.call_tool("text_interaction", {"query": text, "student_id": student_id})
-                        if hasattr(response, 'content') and isinstance(response.content, list):
-                            for item in response.content:
-                                if hasattr(item, 'text') and item.text:
-                                    try:
-                                        data = json.loads(item.text)
-                                        return data
-                                    except Exception:
-                                        return {"raw_pretty": json.dumps(item.text, indent=2)}
-                        if isinstance(response, dict):
-                            return response
-                        if isinstance(response, str):
-                            try:
-                                return json.loads(response)
-                            except Exception:
-                                return {"raw_pretty": json.dumps(response, indent=2)}
-                        return {"raw_pretty": json.dumps(str(response), indent=2)}
-                
-            text_btn.click(
-                fn=text_interaction_async,
-                inputs=[text_input],
-                outputs=[text_output]
-            )
-            
-            # Document OCR (PDF, images, etc.)
-            gr.Markdown("## Document OCR & LLM Analysis")
-            with gr.Row():
-                with gr.Column():
-                    doc_input = gr.File(label="Upload PDF or Document", file_types=[".pdf", ".jpg", ".jpeg", ".png"])
-                    doc_ocr_btn = gr.Button("Extract Text & Analyze")
-                with gr.Column():
-                    doc_output = gr.JSON(label="Document OCR & LLM Analysis")
-            async def upload_file_to_storage(file_path):
-                """Helper function to upload file to storage API"""
-                try:
-                    url = "https://storage-bucket-api.vercel.app/upload"
-                    with open(file_path, 'rb') as f:
-                        files = {'file': (os.path.basename(file_path), f)}
-                        response = requests.post(url, files=files)
-                        response.raise_for_status()
-                        return response.json()
-                except Exception as e:
-                    return {"error": f"Error uploading file to storage: {str(e)}", "success": False}
+            # Tab 2: Advanced Features
+            with gr.Tab("2️⃣ Advanced Features", elem_id="advanced_features_tab"):
+                gr.Markdown("## Lesson Generation")
 
-            async def document_ocr_async(file):
-                if not file:
-                    return {"error": "No file provided", "success": False}
-                try:
-                    if isinstance(file, dict):
-                        file_path = file.get("path", "")
-                    else:
-                        file_path = file
-                    if not file_path or not os.path.exists(file_path):
-                        return {"error": "File not found", "success": False}
-                    upload_result = await upload_file_to_storage(file_path)
-                    if not upload_result.get("success"):
-                        return upload_result
-                    storage_url = upload_result.get("storage_url")
-                    if not storage_url:
-                        return {"error": "No storage URL returned from upload", "success": False}
-                    async with sse_client(SERVER_URL) as (sse, write):
-                        async with ClientSession(sse, write) as session:
-                            await session.initialize()
-                            response = await session.call_tool("mistral_document_ocr", {"document_url": storage_url})
-                            if hasattr(response, 'content') and isinstance(response.content, list):
-                                for item in response.content:
-                                    if hasattr(item, 'text') and item.text:
-                                        try:
-                                            data = json.loads(item.text)
-                                            return data
-                                        except Exception:
-                                            return {"raw_pretty": json.dumps(item.text, indent=2)}
-                            if isinstance(response, dict):
-                                return response
-                            if isinstance(response, str):
-                                try:
-                                    return json.loads(response)
-                                except Exception:
-                                    return {"raw_pretty": json.dumps(response, indent=2)}
-                            return {"raw_pretty": json.dumps(str(response), indent=2)}
-                except Exception as e:
-                    return {"error": f"Error processing document: {str(e)}", "success": False}
-            doc_ocr_btn.click(
-                fn=document_ocr_async,
-                inputs=[doc_input],
-                outputs=[doc_output]
-            )
+                with gr.Row():
+                    with gr.Column():
+                        topic_input = gr.Textbox(label="Lesson Topic", value="Solving Quadratic Equations")
+                        grade_input = gr.Slider(minimum=1, maximum=12, value=9, step=1, label="Grade Level")
+                        duration_input = gr.Slider(minimum=15, maximum=90, value=45, step=5, label="Duration (minutes)")
+                        gen_lesson_btn = gr.Button("Generate Lesson Plan")
+
+                    with gr.Column():
+                        lesson_output = gr.JSON(label="Lesson Plan")
+
+                # Connect lesson generation button
+                gen_lesson_btn.click(
+                    fn=generate_lesson_async,
+                    inputs=[topic_input, grade_input, duration_input],
+                    outputs=[lesson_output]
+                )
+
+                gr.Markdown("## Learning Path Generation")
+                with gr.Row():
+                    with gr.Column():
+                        lp_student_id = gr.Textbox(label="Student ID", value=student_id)
+                        lp_concept_ids = gr.Textbox(label="Concept IDs (comma-separated)", placeholder="e.g., python,functions,oop")
+                        lp_student_level = gr.Dropdown(choices=["beginner", "intermediate", "advanced"], value="beginner", label="Student Level")
+                        lp_btn = gr.Button("Generate Learning Path")
+                    with gr.Column():
+                        lp_output = gr.JSON(label="Learning Path")
+
+                # Connect learning path generation button
+                lp_btn.click(
+                    fn=on_generate_learning_path,
+                    inputs=[lp_student_id, lp_concept_ids, lp_student_level],
+                    outputs=[lp_output]
+                )
         
-        # Tab 4: Analytics
-        with gr.Tab("Analytics"):
-            gr.Markdown("## Plagiarism Detection")
+            # Tab 3: Interactive Tools
+            with gr.Tab("3️⃣ Interactive Tools", elem_id="interactive_tools_tab"):
+                gr.Markdown("## Text Interaction")
+
+                with gr.Row():
+                    with gr.Column():
+                        text_input = gr.Textbox(label="Ask a Question", value="How do I solve a quadratic equation?")
+                        text_btn = gr.Button("Submit")
+
+                    with gr.Column():
+                        text_output = gr.JSON(label="Response")
+
+                # Connect text interaction button
+                text_btn.click(
+                    fn=lambda text: text_interaction_async(text, student_id),
+                    inputs=[text_input],
+                    outputs=[text_output]
+                )
+
+                # Document OCR (PDF, images, etc.)
+                gr.Markdown("## Document OCR & LLM Analysis")
+                with gr.Row():
+                    with gr.Column():
+                        doc_input = gr.File(label="Upload PDF or Document", file_types=[".pdf", ".jpg", ".jpeg", ".png"])
+                        doc_ocr_btn = gr.Button("Extract Text & Analyze")
+                    with gr.Column():
+                        doc_output = gr.JSON(label="Document OCR & LLM Analysis")
+
+                # Connect document OCR button
+                doc_ocr_btn.click(
+                    fn=document_ocr_async,
+                    inputs=[doc_input],
+                    outputs=[doc_output]
+                )
             
+            # Tab 4: Data Analytics
+            with gr.Tab("4️⃣ Data Analytics", elem_id="data_analytics_tab"):
+                gr.Markdown("## Plagiarism Detection")
+                
+                with gr.Row():
+                    with gr.Column():
+                        submission_input = gr.Textbox(
+                            label="Student Submission",
+                            lines=5,
+                            value="The quadratic formula states that if ax² + bx + c = 0, then x = (-b ± √(b² - 4ac)) / 2a."
+                        )
+                        reference_input = gr.Textbox(
+                            label="Reference Source",
+                            lines=5,
+                            value="According to the quadratic formula, for any equation in the form ax² + bx + c = 0, the solutions are x = (-b ± √(b² - 4ac)) / 2a."
+                        )
+                        plagiarism_btn = gr.Button("Check Originality")
+                    
+                    with gr.Column():
+                        with gr.Group():
+                            gr.Markdown("### 🔍 Originality Report")
+                            plagiarism_output = gr.JSON(label="", show_label=False, container=False)
+                
+                # Connect the button to the plagiarism check function
+                plagiarism_btn.click(
+                    fn=check_plagiarism_async,
+                    inputs=[submission_input, reference_input],
+                    outputs=[plagiarism_output]
+                )
+            
+            # Footer
+            gr.Markdown("---")
             with gr.Row():
                 with gr.Column():
-                    submission_input = gr.Textbox(
-                        label="Student Submission",
-                        lines=5,
-                        value="The quadratic formula states that if ax² + bx + c = 0, then x = (-b ± √(b² - 4ac)) / 2a."
-                    )
-                    reference_input = gr.Textbox(
-                        label="Reference Source",
-                        lines=5,
-                        value="According to the quadratic formula, for any equation in the form ax² + bx + c = 0, the solutions are x = (-b ± √(b² - 4ac)) / 2a."
-                    )
-                    plagiarism_btn = gr.Button("Check Originality")
-                
+                    gr.Markdown("### About TutorX")
+                    gr.Markdown("""
+                    TutorX is an AI-powered educational platform designed to enhance learning through interactive tools and personalized content.
+                    """)
                 with gr.Column():
-                    plagiarism_output = gr.JSON(label="Originality Report")
+                    gr.Markdown("### Quick Links")
+                    gr.Markdown("""
+                    - [Documentation](#)
+                    - [GitHub Repository](#)
+                    - [Report an Issue](#)
+                    """)
             
-            async def check_plagiarism_async(submission, reference):
-                async with sse_client(SERVER_URL) as (sse, write):
-                    async with ClientSession(sse, write) as session:
-                        await session.initialize()
-                        response = await session.call_tool("check_submission_originality", {"submission": submission, "reference_sources": [reference] if isinstance(reference, str) else reference})
-                        if hasattr(response, 'content') and isinstance(response.content, list):
-                            for item in response.content:
-                                if hasattr(item, 'text') and item.text:
-                                    try:
-                                        data = json.loads(item.text)
-                                        return data
-                                    except Exception:
-                                        return {"raw_pretty": json.dumps(item.text, indent=2)}
-                        if isinstance(response, dict):
-                            return response
-                        if isinstance(response, str):
-                            try:
-                                return json.loads(response)
-                            except Exception:
-                                return {"raw_pretty": json.dumps(response, indent=2)}
-                        return {"raw_pretty": json.dumps(str(response), indent=2)}
-                
-            plagiarism_btn.click(
-                fn=check_plagiarism_async,
-                inputs=[submission_input, reference_input],
-                outputs=[plagiarism_output]
-            )
+            # Add some spacing at the bottom
+            gr.Markdown("\n\n")
+            gr.Markdown("---")
+            gr.Markdown("© 2025 TutorX - All rights reserved")
+        
+        return demo
 
 # Launch the interface
 if __name__ == "__main__":
+    demo = create_gradio_interface()
     demo.queue().launch(server_name="0.0.0.0", server_port=7860)

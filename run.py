@@ -79,10 +79,11 @@ def run_gradio_interface(port=7860):
         if mcp_server_dir not in sys.path:
             sys.path.insert(0, mcp_server_dir)
             
-        # Import and run the Gradio app
-        from app import demo
+        # Import and create the Gradio app
+        from app import create_gradio_interface
         
-        # Launch the Gradio interface
+        # Create and launch the Gradio interface
+        demo = create_gradio_interface()
         demo.launch(
             server_name="0.0.0.0",
             server_port=port,
