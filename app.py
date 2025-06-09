@@ -420,7 +420,23 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                         async with ClientSession(sse, write) as session:
                             await session.initialize()
                             response = await session.call_tool("generate_quiz_tool", {"concept": concept.strip(), "difficulty": difficulty_str})
-                            return response
+                            # --- PATCH: Parse quiz JSON for pretty display ---
+                            if hasattr(response, 'content') and isinstance(response.content, list):
+                                for item in response.content:
+                                    if hasattr(item, 'text') and item.text:
+                                        try:
+                                            quiz_data = json.loads(item.text)
+                                            return quiz_data
+                                        except Exception:
+                                            return {"raw": item.text}
+                            if isinstance(response, dict):
+                                return response
+                            if isinstance(response, str):
+                                try:
+                                    return json.loads(response)
+                                except Exception:
+                                    return {"raw": response}
+                            return {"raw": str(response)}
                 except Exception as e:
                     import traceback
                     return {
