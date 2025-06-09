@@ -1,3 +1,15 @@
+---
+title: TutorX MCP
+emoji: 🏆
+colorFrom: indigo
+colorTo: yellow
+sdk: gradio
+sdk_version: 5.33.0
+app_file: app.py
+pinned: false
+short_description: MCP that deliver personalized AI-powered tutoring .
+---
+
 # TutorX-MCP Server
 
 A comprehensive Model Context Protocol (MCP) server for educational AI tutoring as specified in the Product Requirements Document (PRD).
