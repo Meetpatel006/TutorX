@@ -8,6 +8,27 @@ TutorX-MCP is an adaptive, multi-modal, and collaborative AI tutoring platform t
 
 ![TutorX-MCP](https://via.placeholder.com/800x400?text=TutorX-MCP+Educational+Platform)
 
+For a comprehensive analysis of the project from architectural, development, and product perspectives, please see our [Project Analysis Document](PROJECT_ANALYSIS.md).
+
+## Version History
+
+### Current Version
+- **v0.1.0** (June 2025)
+  - Initial release of core MCP server with SSE transport
+  - Implementation of concept graph and curriculum standards resources
+  - Integration with Google Gemini Flash models (with fallback mechanism)
+  - Addition of Mistral OCR for document processing
+  - Core educational tools: concepts, quizzes, lessons, learning paths
+  - Basic testing framework with pytest and unittest
+
+### Upcoming Release
+- **v0.2.0** (Planned - July 2025)
+  - Memory Bank implementation for persistent context storage
+  - Enhanced multi-modal support with voice recognition
+  - Improved testing coverage and CI/CD pipeline
+  - User dashboard implementation
+  - Role-based access control and security enhancements
+
 ## Features
 
 ### Core Features
@@ -50,109 +71,182 @@ TutorX-MCP is an adaptive, multi-modal, and collaborative AI tutoring platform t
 - Python 3.12 or higher
 - Dependencies as listed in pyproject.toml:
   - mcp[cli] >= 1.9.3
+  - fastapi >= 0.109.0
+  - uvicorn >= 0.27.0
   - gradio >= 4.19.0
   - numpy >= 1.24.0
   - pillow >= 10.0.0
+  - google-generativeai (for Gemini integration)
+  - mistralai (for OCR capabilities)
 
 ### Installation
 
-```bash
+```powershell
 # Clone the repository
-git clone https://github.com/yourusername/tutorx-mcp.git
+git clone https://github.com/Meetpatel006/TutorX.git
 cd tutorx-mcp
 
 # Using uv (recommended)
 uv install
 
-# Or using pip
-pip install -e .
+```
+
+### Required API Keys
+
+For full functionality, you'll need to set up the following API keys:
+
+- **Google AI API Key**: For Gemini Flash model integration
+- **Mistral API Key**: For document OCR capabilities
+
+These can be set as environment variables or in an `.env` file:
+
+```powershell
+# PowerShell example
+$env:GOOGLE_API_KEY="your-google-api-key"
+$env:MISTRAL_API_KEY="your-mistral-api-key"
 ```
 
 ### Running the Server
 
 You can run the server in different modes:
 
-```bash
+```powershell
 # MCP server only
 python run.py --mode mcp
 
 # Gradio interface only
 python run.py --mode gradio
 
-# Both MCP server and Gradio interface
+# Both MCP server and Gradio interface (default)
 python run.py --mode both
 
 # Custom host and port
-python run.py --mode mcp --host 0.0.0.0 --port 9000
+python run.py --mode mcp --host 0.0.0.0 --mcp-port 8001 --gradio-port 7860
 ```
 
-By default, the MCP server will run at http://localhost:8000 and the Gradio interface at http://127.0.0.1:7860.
+By default:
+- The MCP server runs at http://localhost:8001 
+- SSE transport is available at http://localhost:8001/sse
+- The Gradio interface runs at http://127.0.0.1:7860
 
 ## MCP Tool Integration
 
 The server exposes the following MCP tools and resources:
 
 ### Tools
-- **Core Features**
-  - `assess_skill`: Evaluate student's skill level on specific concepts
-  - `generate_quiz`: Create quizzes for specific concepts
-  - `analyze_error_patterns`: Find common student mistakes
 
-- **Assessment**
-  - `create_assessment`: Generate complete assessments
-  - `grade_assessment`: Score student responses
-  - `check_submission_originality`: Detect plagiarism
+- **Concept Tools** (concept_tools.py)
+  - `get_concept_tool`: Retrieve detailed information about educational concepts
+  - `assess_skill_tool`: Evaluate student's understanding of specific concepts
 
-- **Advanced Features**
-  - `analyze_cognitive_state`: Process EEG data
-  - `align_content_to_standard`: Match content to curriculum standards
-  - `generate_lesson`: Create complete lesson plans
+- **Quiz Tools** (quiz_tools.py)
+  - `generate_quiz_tool`: Create LLM-generated quizzes for specific concepts with customizable difficulty
 
-- **Multi-Modal**
-  - `text_interaction`: Process text queries
-  - `voice_interaction`: Handle voice input
-  - `handwriting_recognition`: Process handwritten input
+- **Lesson Tools** (lesson_tools.py)
+  - `generate_lesson_tool`: Create complete lesson plans with objectives, activities, and assessments
+
+- **Interaction Tools** (interaction_tools.py)
+  - `text_interaction`: Process student text queries and provide educational responses
+  - `check_submission_originality`: Analyze student submissions for potential plagiarism
+
+- **OCR Tools** (ocr_tools.py)
+  - `mistral_document_ocr`: Extract and process text from documents using Mistral OCR
+
+- **Learning Path Tools** (learning_path_tools.py)
+  - `get_learning_path`: Generate personalized learning paths based on student level and target concepts
+
+- **Memory Tools** (v0.2.0)
+  - `read_memory_tool`: Retrieve stored context from the Memory Bank
+  - `write_memory_tool`: Store new contextual information in the Memory Bank
+  - `update_memory_tool`: Modify existing context in the Memory Bank
+  - `clear_memory_tool`: Remove stored context from the Memory Bank
 
 ### Resources
-- `concept-graph://`: Knowledge concept graph
-- `learning-path://{student_id}`: Personalized learning paths
-- `curriculum-standards://{country_code}`: National curricular standards
-- `student-dashboard://{student_id}`: Student performance dashboard
+
+- `concept-graph://`: Knowledge concept graph with concept relationships
+- `curriculum-standards://{country_code}`: National curricular standards by country
+- `learning-path://{student_id}`: Personalized student learning paths
+
 
 ## Project Structure
 
 ```
 tutorx-mcp/
-├── main.py              # MCP server implementation
-├── client.py            # MCP client for calling server tools
-├── app.py               # Gradio web interface
-├── run.py               # Runner script for different modes
-├── tests/               # Test suite
-│   ├── test_mcp_server.py  # MCP server tests
-│   ├── test_client.py      # Client tests
-│   └── test_utils.py       # Utility function tests
-├── utils/               # Utility modules
-│   ├── multimodal.py    # Multi-modal processing utilities
-│   └── assessment.py    # Assessment and analytics functions
-├── pyproject.toml       # Project dependencies
-├── run_tests.py         # Script to run all tests
-└── README.md            # Project documentation
+├── main.py                  # MCP server entry point
+├── app.py                   # Gradio web interface
+├── run.py                   # Runner script for different modes
+├── mcp_server/              # Core server implementation
+│   ├── server.py            # FastAPI application
+│   ├── mcp_instance.py      # Shared MCP instance
+│   ├── model/               # AI model integrations
+│   │   └── gemini_flash.py  # Google Gemini integration
+│   ├── resources/           # Educational resources
+│   │   ├── concept_graph.py # Concept graph implementation
+│   │   └── curriculum_standards.py # Curriculum standards
+│   ├── tools/               # MCP tool implementations
+│   │   ├── concept_tools.py # Concept-related tools
+│   │   ├── quiz_tools.py    # Quiz generation tools
+│   │   ├── lesson_tools.py  # Lesson generation tools
+│   │   ├── ocr_tools.py     # Document OCR tools
+│   │   ├── interaction_tools.py # Student interaction tools
+│   │   └── learning_path_tools.py # Learning path tools
+│   └── prompts/             # LLM prompt templates
+├── tests/                   # Test suite
+│   ├── test_mcp_server.py   # MCP server tests
+│   ├── test_client.py       # Client tests
+│   ├── test_tools_integration.py # Tool integration tests
+│   └── test_utils.py        # Utility function tests
+├── docs/                    # Documentation
+│   ├── API.md               # API documentation
+│   ├── mcp.md               # MCP protocol details
+│   ├── prd.md               # Product requirements document
+│   └── sdk.md               # Client SDK documentation
+├── pyproject.toml           # Project dependencies
+├── run_tests.py             # Script to run all tests
+├── ARCHITECTURE.md          # Detailed architecture documentation
+├── PROJECT_ANALYSIS.md      # Comprehensive project analysis
+└── README.md                # Project documentation
 ```
 
 ## Architecture
 
-The TutorX-MCP follows a layered architecture:
+TutorX-MCP implements a modular, layered architecture designed for extensibility and maintainability:
 
-1. **MCP Server (main.py)**: Core backend that exposes educational tools and resources through the Model Context Protocol.
+### Key Components
 
-2. **MCP Client (client.py)**: Client library that communicates with the MCP server through HTTP requests, translating method calls into MCP protocol interactions.
+1. **MCP Server (mcp_server/server.py)**: 
+   - Core FastAPI application that exposes educational tools and resources
+   - Registers tools with the shared MCP instance
+   - Provides HTTP endpoints and SSE transport for client connections
 
-3. **Gradio Interface (app.py)**: Web-based user interface that uses the client to communicate with the MCP server.
+2. **Shared MCP Instance (mcp_server/mcp_instance.py)**: 
+   - Central registration point for all MCP tools
+   - Avoids circular import issues and ensures tool availability
+
+3. **AI Model Integration (mcp_server/model/)**:
+   - Integrates Google Gemini Flash models with automatic fallback mechanisms
+   - Provides uniform interface for text generation and content structuring
+
+4. **Tool Modules (mcp_server/tools/)**:
+   - Modular implementation of educational features
+   - Each tool is registered with the MCP instance via decorators
+   - Designed for independent development and testing
+
+5. **Resource Modules (mcp_server/resources/)**:
+   - Manages educational data like concept graphs and curriculum standards
+   - Provides data for adaptive learning and standards alignment
+
+6. **Gradio Interface (app.py)**:
+   - Web-based user interface
+   - Communicates with the MCP server via the MCP client protocol
 
 This separation of concerns allows:
-- MCP clients (like Claude Desktop App) to directly connect to the MCP server
-- The web interface to interact with the server using standard HTTP
-- Clear boundaries between presentation, business logic, and tool implementation
+- MCP clients (like Claude Desktop App) to directly connect to the MCP server via SSE transport
+- The web interface to interact with the server using the MCP protocol
+- Clear boundaries between presentation, API gateway, tool implementations, and resources
+- Easy extension through the addition of new tool modules
+
+For more detailed architecture information, see the [Architecture Documentation](ARCHITECTURE.md) and [Project Analysis](PROJECT_ANALYSIS.md).
 
 ## Testing
 
@@ -166,13 +260,13 @@ uv install -e ".[test]"
 python run_tests.py
 ```
 
-
-
 ## Documentation
 
+- [Project Analysis](PROJECT_ANALYSIS.md): Comprehensive analysis of architecture, implementation, and product features
 - [MCP Protocol](docs/mcp.md): Details about the Model Context Protocol
 - [Product Requirements](docs/prd.md): Original requirements document
 - [SDK Documentation](docs/sdk.md): Client SDK usage
+- [Architecture](ARCHITECTURE.md): Detailed technical architecture documentation
 
 ## Contributing
 
