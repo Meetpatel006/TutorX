@@ -3,19 +3,25 @@ Gradio web interface for the TutorX MCP Server with SSE support
 """
 
 import os
-import gradio as gr
-import numpy as np
 import json
-
-from datetime import datetime
 import asyncio
-import aiohttp
-import sseclient
+import gradio as gr
+from typing import Optional, Dict, Any, List, Union, Tuple
 import requests
+import tempfile
+import base64
+import re
+import networkx as nx
+import matplotlib
+import matplotlib.pyplot as plt
 
-# Import MCP SSE client context managers
-from mcp import ClientSession
+# Set matplotlib to use 'Agg' backend to avoid GUI issues in Gradio
+matplotlib.use('Agg')
+
+# Import MCP client components
 from mcp.client.sse import sse_client
+from mcp.client.session import ClientSession
+from mcp.types import TextContent, CallToolResult
 
 # Server configuration
 SERVER_URL = "http://localhost:8000/sse"  # Ensure this is the SSE endpoint
@@ -23,88 +29,270 @@ SERVER_URL = "http://localhost:8000/sse"  # Ensure this is the SSE endpoint
 # Utility functions
 
 
-async def load_concept_graph(concept_id: str = None):
+async def load_concept_graph(concept_id: str = None) -> Tuple[Optional[plt.Figure], Dict, List]:
     """
     Load and visualize the concept graph for a given concept ID.
     If no concept_id is provided, returns the first available concept.
-    Uses call_resource for concept graph retrieval (not a tool).
     
+    Args:
+        concept_id: The ID or name of the concept to load
+        
     Returns:
         tuple: (figure, concept_details, related_concepts) or (None, error_dict, [])
     """
+    print(f"[DEBUG] Loading concept graph for concept_id: {concept_id}")
+    
     try:
-        print(f"[DEBUG] Loading concept graph for concept_id: {concept_id}")
         async with sse_client(SERVER_URL) as (sse, write):
             async with ClientSession(sse, write) as session:
                 await session.initialize()
-                result = await session.call_tool("get_concept_graph_tool", {"concept_id": concept_id} if concept_id else {})
-                print(f"[DEBUG] Server response: {result}")
-                if not result or not isinstance(result, dict):
-                    error_msg = "Invalid server response"
+                
+                # Call the concept graph tool
+                result = await session.call_tool(
+                    "get_concept_graph_tool", 
+                    {"concept_id": concept_id} if concept_id else {}
+                )
+                print(f"[DEBUG] Raw tool response type: {type(result)}")
+                
+                # Extract content if it's a TextContent object
+                if hasattr(result, 'content') and isinstance(result.content, list):
+                    for item in result.content:
+                        if hasattr(item, 'text') and item.text:
+                            try:
+                                result = json.loads(item.text)
+                                print("[DEBUG] Successfully parsed JSON from TextContent")
+                                break
+                            except json.JSONDecodeError as e:
+                                print(f"[ERROR] Failed to parse JSON from TextContent: {e}")
+                
+                # If result is a string, try to parse it as JSON
+                if isinstance(result, str):
+                    try:
+                        result = json.loads(result)
+                    except json.JSONDecodeError as e:
+                        print(f"[ERROR] Failed to parse result as JSON: {e}")
+                        return None, {"error": f"Failed to parse concept graph data: {str(e)}"}, []
+                
+                # Debug print for the raw backend response
+                print(f"[DEBUG] Raw backend response: {result}")
+                
+                # Handle backend error response
+                if isinstance(result, dict) and "error" in result:
+                    error_msg = f"Backend error: {result['error']}"
                     print(f"[ERROR] {error_msg}")
                     return None, {"error": error_msg}, []
-                if "error" in result:
-                    print(f"[ERROR] Server returned error: {result['error']}")
-                    return None, {"error": result["error"]}, []
-                if "concepts" in result and not concept_id:
-                    if not result["concepts"]:
-                        error_msg = "No concepts available"
-                        print(f"[ERROR] {error_msg}")
-                        return None, {"error": error_msg}, []
-                    concept = result["concepts"][0]
-                    print(f"[DEBUG] Using first concept from list: {concept.get('id')}")
-                else:
-                    concept = result.get("concept", result)
-                    print(f"[DEBUG] Using direct concept: {concept.get('id')}")
-                if not isinstance(concept, dict) or not concept.get('id'):
-                    error_msg = "Invalid concept data structure"
-                    print(f"[ERROR] {error_msg}: {concept}")
+                
+                concept = None
+                
+                # Handle different response formats
+                if isinstance(result, dict):
+                    # Case 1: Direct concept object
+                    if "id" in result or "name" in result:
+                        concept = result
+                    # Case 2: Response with 'concepts' list
+                    elif "concepts" in result:
+                        if result["concepts"]:
+                            concept = result["concepts"][0] if not concept_id else None
+                            # Try to find the requested concept by ID or name
+                            if concept_id:
+                                for c in result["concepts"]:
+                                    if (isinstance(c, dict) and 
+                                        (c.get("id") == concept_id or 
+                                         str(c.get("name", "")).lower() == concept_id.lower())):
+                                        concept = c
+                                        break
+                                if not concept:
+                                    error_msg = f"Concept '{concept_id}' not found in the concept graph"
+                                    print(f"[ERROR] {error_msg}")
+                                    return None, {"error": error_msg}, []
+                        else:
+                            error_msg = "No concepts found in the concept graph"
+                            print(f"[ERROR] {error_msg}")
+                            return None, {"error": error_msg}, []
+                
+                # If we still don't have a valid concept
+                if not concept or not isinstance(concept, dict):
+                    error_msg = "Could not extract valid concept data from response"
+                    print(f"[ERROR] {error_msg}")
                     return None, {"error": error_msg}, []
-                import matplotlib.pyplot as plt
-                import networkx as nx
+                
+                # Ensure required fields exist with defaults
+                concept.setdefault('related_concepts', [])
+                concept.setdefault('prerequisites', [])
+                
+                print(f"[DEBUG] Final concept data: {concept}")
+                
+                # Create a new directed graph
                 G = nx.DiGraph()
-                G.add_node(concept["id"], label=concept["name"], type="concept")
-                related_concepts = []
-                if "related" in concept:
-                    for rel_id in concept["related"]:
-                        rel_result = await session.call_tool("get_concept_graph_tool", {"concept_id": rel_id})
-                        if "error" not in rel_result:
-                            rel_concept = rel_result.get("concept", {})
-                            G.add_node(rel_id, label=rel_concept.get("name", rel_id), type="related")
-                            G.add_edge(concept["id"], rel_id, relationship="related_to")
-                            related_concepts.append([rel_id, rel_concept.get("name", ""), rel_concept.get("description", "")])
-                if "prerequisites" in concept:
-                    for prereq_id in concept["prerequisites"]:
-                        prereq_result = await session.call_tool("get_concept_graph_tool", {"concept_id": prereq_id})
-                        if "error" not in prereq_result:
-                            prereq_concept = prereq_result.get("concept", {})
-                            G.add_node(prereq_id, label=prereq_concept.get("name", prereq_id), type="prerequisite")
-                            G.add_edge(prereq_id, concept["id"], relationship="prerequisite_for")
-                plt.figure(figsize=(10, 8))
-                pos = nx.spring_layout(G)
+                
+                # Add the main concept node
+                main_node_id = concept["id"]
+                G.add_node(main_node_id, 
+                          label=concept["name"], 
+                          type="main",
+                          description=concept["description"])
+                
+                # Add related concepts and edges
+                all_related = []
+                
+                # Process related concepts
+                for rel in concept.get('related_concepts', []):
+                    if isinstance(rel, dict):
+                        rel_id = rel.get('id', str(hash(str(rel.get('name', '')))))
+                        rel_name = rel.get('name', 'Unnamed')
+                        rel_desc = rel.get('description', 'Related concept')
+                        
+                        G.add_node(rel_id, 
+                                 label=rel_name, 
+                                 type="related",
+                                 description=rel_desc)
+                        G.add_edge(main_node_id, rel_id, type="related_to")
+                        
+                        all_related.append(["Related", rel_name, rel_desc])
+                
+                # Process prerequisites
+                for prereq in concept.get('prerequisites', []):
+                    if isinstance(prereq, dict):
+                        prereq_id = prereq.get('id', str(hash(str(prereq.get('name', '')))))
+                        prereq_name = f"[Prerequisite] {prereq.get('name', 'Unnamed')}"
+                        prereq_desc = prereq.get('description', 'Prerequisite concept')
+                        
+                        G.add_node(prereq_id,
+                                 label=prereq_name,
+                                 type="prerequisite",
+                                 description=prereq_desc)
+                        G.add_edge(prereq_id, main_node_id, type="prerequisite_for")
+                        
+                        all_related.append(["Prerequisite", prereq_name, prereq_desc])
+                
+                # Create the plot
+                plt.figure(figsize=(14, 10))
+                
+                # Calculate node positions using spring layout
+                pos = nx.spring_layout(G, k=0.5, iterations=50, seed=42)
+                
+                # Define node colors and sizes based on type
                 node_colors = []
-                for node in G.nodes():
-                    if G.nodes[node].get("type") == "concept":
-                        node_colors.append("lightblue")
-                    elif G.nodes[node].get("type") == "prerequisite":
-                        node_colors.append("lightcoral")
-                    else:
-                        node_colors.append("lightgreen")
-                nx.draw_networkx_nodes(G, pos, node_size=2000, node_color=node_colors, alpha=0.8)
-                nx.draw_networkx_edges(G, pos, width=1.0, alpha=0.5)
-                labels = {node: G.nodes[node].get("label", node) for node in G.nodes()}
-                nx.draw_networkx_labels(G, pos, labels, font_size=10, font_weight="bold")
-                edge_labels = {(u, v): d["relationship"] for u, v, d in G.edges(data=True)}
-                nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=8)
-                plt.title(f"Concept Graph: {concept.get('name', concept_id)}")
-                plt.axis("off")
-                concept_details = concept
-                return plt.gcf(), concept_details, related_concepts
+                node_sizes = []
+                for node, data in G.nodes(data=True):
+                    if data.get('type') == 'main':
+                        node_colors.append('#4e79a7')  # Blue for main concept
+                        node_sizes.append(1500)
+                    elif data.get('type') == 'prerequisite':
+                        node_colors.append('#59a14f')  # Green for prerequisites
+                        node_sizes.append(1000)
+                    else:  # related
+                        node_colors.append('#e15759')  # Red for related concepts
+                        node_sizes.append(1000)
+                
+                # Draw nodes
+                nx.draw_networkx_nodes(
+                    G, pos,
+                    node_color=node_colors,
+                    node_size=node_sizes,
+                    alpha=0.9,
+                    edgecolors='white',
+                    linewidths=2
+                )
+                
+                # Draw edges with different styles for different relationships
+                related_edges = [(u, v) for u, v, d in G.edges(data=True) 
+                              if d.get('type') == 'related_to']
+                prereq_edges = [(u, v) for u, v, d in G.edges(data=True) 
+                             if d.get('type') == 'prerequisite_for']
+                
+                # Draw related edges
+                nx.draw_networkx_edges(
+                    G, pos,
+                    edgelist=related_edges,
+                    width=1.5,
+                    alpha=0.7,
+                    edge_color="#e15759",
+                    style="solid",
+                    arrowsize=15,
+                    arrowstyle='-|>',
+                    connectionstyle='arc3,rad=0.1'
+                )
+                
+                # Draw prerequisite edges
+                nx.draw_networkx_edges(
+                    G, pos,
+                    edgelist=prereq_edges,
+                    width=1.5,
+                    alpha=0.7,
+                    edge_color="#59a14f",
+                    style="dashed",
+                    arrowsize=15,
+                    arrowstyle='-|>',
+                    connectionstyle='arc3,rad=0.1'
+                )
+                
+                # Draw node labels with white background for better readability
+                node_labels = {node: data["label"] 
+                             for node, data in G.nodes(data=True) 
+                             if "label" in data}
+                
+                nx.draw_networkx_labels(
+                    G, pos,
+                    labels=node_labels,
+                    font_size=10,
+                    font_weight="bold",
+                    font_family="sans-serif",
+                    bbox=dict(
+                        facecolor="white",
+                        edgecolor='none',
+                        alpha=0.8,
+                        boxstyle='round,pad=0.3',
+                        linewidth=0
+                    )
+                )
+                
+                # Add a legend
+                import matplotlib.patches as mpatches
+                legend_elements = [
+                    mpatches.Patch(facecolor='#4e79a7', label='Main Concept', alpha=0.9),
+                    mpatches.Patch(facecolor='#e15759', label='Related Concept', alpha=0.9),
+                    mpatches.Patch(facecolor='#59a14f', label='Prerequisite', alpha=0.9)
+                ]
+                
+                plt.legend(
+                    handles=legend_elements, 
+                    loc='upper right',
+                    bbox_to_anchor=(1.0, 1.0),
+                    frameon=True,
+                    framealpha=0.9
+                )
+                
+                plt.axis('off')
+                plt.tight_layout()
+                
+                # Create concept details dictionary
+                concept_details = {
+                    'name': concept['name'],
+                    'id': concept['id'],
+                    'description': concept['description']
+                }
+                
+                # Return the figure, concept details, and related concepts
+                return plt.gcf(), concept_details, all_related
+                
     except Exception as e:
         import traceback
-        traceback.print_exc()
+        error_msg = f"Error in load_concept_graph: {str(e)}\n\n{traceback.format_exc()}"
+        print(f"[ERROR] {error_msg}")
         return None, {"error": f"Failed to load concept graph: {str(e)}"}, []
-        
+
+def sync_load_concept_graph(concept_id):
+    """Synchronous wrapper for async load_concept_graph, always returns 3 outputs."""
+    try:
+        result = asyncio.run(load_concept_graph(concept_id))
+        if result and len(result) == 3:
+            return result
+        else:
+            return None, {"error": "Unexpected result format"}, []
+    except Exception as e:
+        return None, {"error": str(e)}, []
+
 # Create Gradio interface
 with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
     gr.Markdown("# 📚 TutorX Educational AI Platform")
@@ -122,43 +310,73 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
         with gr.Tab("Core Features"):
             with gr.Blocks() as concept_graph_tab:
                 gr.Markdown("## Concept Graph Visualization")
+                gr.Markdown("Explore relationships between educational concepts through an interactive graph visualization.")
+                
                 with gr.Row():
+                    # Left panel for controls and details
                     with gr.Column(scale=3):
-                        # Change from dropdown to textbox for concept input
-                        concept_input_box = gr.Textbox(
-                            label="Enter Concept Name",
-                            placeholder="e.g., python, functions, oop, data_structures",
-                            lines=1,
-                            interactive=True
-                        )
-                        load_concept_btn = gr.Button("Load Concept Graph", variant="primary")
+                        with gr.Row():
+                            concept_input = gr.Textbox(
+                                label="Enter Concept",
+                                placeholder="e.g., machine_learning, calculus, quantum_physics",
+                                value="machine_learning",
+                                scale=4
+                            )
+                            load_btn = gr.Button("Load Graph", variant="primary", scale=1)
                         
                         # Concept details
-                        concept_details = gr.JSON(label="Concept Details")
+                        with gr.Accordion("Concept Details", open=True):
+                            concept_details = gr.JSON(
+                                label=None,
+                                show_label=False
+                            )
                         
-                        # Related concepts
-                        related_concepts = gr.Dataframe(
-                            headers=["ID", "Name", "Description"],
-                            datatype=["str", "str", "str"],
-                            label="Related Concepts"
-                        )
+                        # Related concepts and prerequisites
+                        with gr.Accordion("Related Concepts & Prerequisites", open=True):
+                            related_concepts = gr.Dataframe(
+                                headers=["Type", "Name", "Description"],
+                                datatype=["str", "str", "str"],
+                                interactive=False,
+                                wrap=True,
+                                # max_height=300,  # Fixed height with scroll in Gradio 5.x
+                                # overflow_row_behaviour="paginate"
+                            )
                     
                     # Graph visualization
                     with gr.Column(scale=7):
-                        graph_output = gr.Plot(label="Concept Graph")
+                        graph_plot = gr.Plot(
+                            label="Concept Graph",
+                            show_label=True,
+                            container=True
+                        )
                 
-                # Button click handler
-                load_concept_btn.click(
-                    fn=load_concept_graph,
-                    inputs=[concept_input_box],
-                    outputs=[graph_output, concept_details, related_concepts]
+                # Event handlers
+                load_btn.click(
+                    fn=sync_load_concept_graph,
+                    inputs=[concept_input],
+                    outputs=[graph_plot, concept_details, related_concepts]
                 )
                 
-                # Load default concept on tab click
-                concept_graph_tab.load(
-                    fn=load_concept_graph,
-                    inputs=[concept_input_box],
-                    outputs=[graph_output, concept_details, related_concepts]
+                # Load initial graph
+                demo.load(
+                    fn=lambda: sync_load_concept_graph("machine_learning"),
+                    outputs=[graph_plot, concept_details, related_concepts]
+                )
+                # Help text and examples
+                with gr.Row():
+                    gr.Markdown("""
+                    **Examples to try:**
+                    - `machine_learning`
+                    - `neural_networks`
+                    - `calculus`
+                    - `quantum_physics`
+                    """)
+                
+                # Error display (leave in UI, but not wired up)
+                error_output = gr.Textbox(
+                    label="Error Messages",
+                    visible=False,
+                    interactive=False
                 )
             
             gr.Markdown("## Assessment Generation")
