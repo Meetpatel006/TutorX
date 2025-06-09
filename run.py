@@ -11,7 +11,7 @@ import multiprocessing
 from pathlib import Path
 import socket
 
-def run_mcp_server(host="0.0.0.0", port=8001, debug=False):
+def run_mcp_server(host="0.0.0.0", port=8000, debug=False):
     """
     Run the MCP server using uv
     
@@ -127,8 +127,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mcp-port", 
         type=int, 
-        default=8001,
-        help="Port for MCP server (default: 8001)"
+        default=8000,
+        help="Port for MCP server (default: 8000)"
     )
     parser.add_argument(
         "--gradio-port", 

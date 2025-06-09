@@ -121,12 +121,12 @@ python run.py --mode gradio
 python run.py --mode both
 
 # Custom host and port
-python run.py --mode mcp --host 0.0.0.0 --mcp-port 8001 --gradio-port 7860
+python run.py --mode mcp --host 0.0.0.0 --mcp-port 8000 --gradio-port 7860
 ```
 
 By default:
-- The MCP server runs at http://localhost:8001 
-- SSE transport is available at http://localhost:8001/sse
+- The MCP server runs at http://localhost:8000 
+- SSE transport is available at http://localhost:8000/sse
 - The Gradio interface runs at http://127.0.0.1:7860
 
 ## MCP Tool Integration
