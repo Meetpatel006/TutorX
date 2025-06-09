@@ -1,166 +1,142 @@
 """
-OCR (Optical Character Recognition) tools for TutorX.
+OCR (Optical Character Recognition) tools for TutorX with Mistral OCR integration.
 """
-import base64
-import io
-import tempfile
-from typing import Dict, Any, Optional, Tuple
-# import fitz  # PyMuPDFuv run 
-import pytesseract
-from PIL import Image, ImageEnhance
-import numpy as np
+import os
+from typing import Dict, Any, Optional
 from mcp_server.mcp_instance import mcp
+from mcp_server.model.gemini_flash import GeminiFlash
+from mistralai import Mistral
 
-def preprocess_image(image: Image.Image) -> Image.Image:
+# Initialize models
+MODEL = GeminiFlash()
+client = Mistral(api_key="5oHGQTYDGD3ecQZSqdLsr5ZL4nOsfGYj")
+
+async def mistral_ocr_request(document_url: str) -> dict:
     """
-    Preprocess image to improve OCR accuracy.
+    Send OCR request to Mistral OCR service using document URL.
     
     Args:
-        image: Input PIL Image
+        document_url: URL of the document to process
         
     Returns:
-        Preprocessed PIL Image
-    """
-    # Convert to grayscale
-    image = image.convert('L')
-    
-    # Enhance contrast
-    enhancer = ImageEnhance.Contrast(image)
-    image = enhancer.enhance(2.0)
-    
-    # Enhance sharpness
-    enhancer = ImageEnhance.Sharpness(image)
-    image = enhancer.enhance(2.0)
-    
-    return image
-
-def extract_text_from_image(image: Image.Image) -> str:
-    """
-    Extract text from an image using Tesseract OCR.
-    
-    Args:
-        image: PIL Image to process
-        
-    Returns:
-        Extracted text
+        OCR response from Mistral
     """
     try:
-        # Preprocess the image
-        processed_image = preprocess_image(image)
+        # Process document with Mistral OCR
+        ocr_response = client.ocr.process(
+            model="mistral-ocr-latest",
+            document={
+                "type": "document_url",
+                "document_url": document_url
+            },
+            include_image_base64=True
+        )
         
-        # Use Tesseract to do OCR on the image
-        text = pytesseract.image_to_string(processed_image, lang='eng')
-        return text.strip()
-    except Exception as e:
-        raise RuntimeError(f"Error during OCR processing: {str(e)}")
-
-def extract_text_from_pdf(pdf_data: bytes) -> Tuple[str, int]:
-    """
-    Extract text from a PDF file.
-    
-    Args:
-        pdf_data: PDF file content as bytes
+        # Convert the response to a dictionary
+        if hasattr(ocr_response, 'model_dump'):
+            return ocr_response.model_dump()
+        return ocr_response or {}
         
-    Returns:
-        Tuple of (extracted_text, page_count)
-    """
-    try:
-        # Open the PDF file
-        with fitz.open(stream=pdf_data, filetype="pdf") as doc:
-            page_count = len(doc)
-            extracted_text = []
-            
-            # Extract text from each page
-            for page_num in range(page_count):
-                page = doc.load_page(page_num)
-                text = page.get_text()
-                
-                # If no text is found, try OCR
-                if not text.strip():
-                    pix = page.get_pixmap()
-                    img_data = pix.tobytes("png")
-                    img = Image.open(io.BytesIO(img_data))
-                    text = extract_text_from_image(img)
-                
-                extracted_text.append(text)
-            
-            return "\n\n".join(extracted_text), page_count
     except Exception as e:
-        raise RuntimeError(f"Error processing PDF: {str(e)}")
+        raise RuntimeError(f"Error processing document with Mistral OCR: {str(e)}")
 
 @mcp.tool()
-async def pdf_ocr(request: Dict[str, Any]) -> Dict[str, Any]:
+async def mistral_document_ocr(document_url: str) -> dict:
     """
-    Extract text from a PDF file using OCR.
+    Extract text from any document (PDF, image, etc.) using Mistral OCR service with document URL,
+    then use Gemini to summarize and extract key points as JSON.
     
-    Expected request format:
-    {
-        "pdf_data": "base64_encoded_pdf_data",
-        "filename": "document.pdf"  # Optional
-    }
+    Args:
+        document_url (str): URL of the document to process
     
     Returns:
-        Dictionary containing extracted text and metadata
+        Dictionary with OCR results and AI analysis
     """
     try:
-        # Get and validate input
-        pdf_data_b64 = request.get("pdf_data")
-        if not pdf_data_b64:
-            return {"error": "Missing required field: pdf_data"}
+        if not document_url:
+            return {"error": "Document URL is required"}
         
-        # Decode base64 data
-        try:
-            pdf_data = base64.b64decode(pdf_data_b64)
-        except Exception as e:
-            return {"error": f"Invalid base64 data: {str(e)}"}
+        # Extract filename from URL
+        filename = document_url.split('/')[-1] if '/' in document_url else "document"
         
-        # Extract text from PDF
-        extracted_text, page_count = extract_text_from_pdf(pdf_data)
+        # Call Mistral OCR API
+        ocr_response = await mistral_ocr_request(document_url)
         
-        # Prepare response
+        # Extract text from Mistral response
+        extracted_text = ""
+        page_count = 0
+        
+        if "pages" in ocr_response and isinstance(ocr_response["pages"], list):
+            # Extract text from each page's markdown field
+            extracted_text = "\n\n".join(
+                page.get("markdown", "") 
+                for page in ocr_response["pages"] 
+                if isinstance(page, dict) and "markdown" in page
+            )
+            page_count = len(ocr_response["pages"])
+        
+        # Count words and characters
+        word_count = len(extracted_text.split())
+        char_count = len(extracted_text)
+        
+        # Build result
         result = {
             "success": True,
-            "filename": request.get("filename", "document.pdf"),
-            "page_count": page_count,
+            "filename": filename,
+            "document_url": document_url,
             "extracted_text": extracted_text,
-            "character_count": len(extracted_text),
-            "word_count": len(extracted_text.split()),
-            "processing_time_ms": 0  # Could be calculated if needed
+            "character_count": char_count,
+            "word_count": word_count,
+            "page_count": page_count,
+            "mistral_response": ocr_response,
+            "processing_service": "Mistral OCR",
+            "llm_analysis": {
+                "error": None,
+                "summary": "",
+                "key_points": [],
+                "document_type": "unknown"
+            }
         }
+        
+        # If we have text, try to analyze it with the LLM
+        if extracted_text.strip():
+            try:
+                # Use the LLM to analyze the extracted text
+                llm_prompt = f"""Analyze the following document and provide a brief summary, 3-5 key points, and the document type.
+
+Document:
+{extracted_text[:4000]}  # Limit to first 4000 chars to avoid context window issues
+"""
+                
+                # Await the coroutine
+                llm_response = await MODEL.generate_text(llm_prompt)
+                
+                # Parse the LLM response
+                if llm_response:
+                    # Try to parse as JSON if the response is in JSON format
+                    try:
+                        import json
+                        llm_data = json.loads(llm_response)
+                        result["llm_analysis"].update({
+                            "summary": llm_data.get("summary", ""),
+                            "key_points": llm_data.get("key_points", []),
+                            "document_type": llm_data.get("document_type", "document")
+                        })
+                    except (json.JSONDecodeError, AttributeError):
+                        # If not JSON, use the raw response as summary
+                        result["llm_analysis"].update({
+                            "summary": str(llm_response),
+                            "document_type": "document"
+                        })
+                    
+            except Exception as e:
+                result["llm_analysis"]["error"] = f"LLM analysis error: {str(e)}"
         
         return result
         
     except Exception as e:
-        return {"error": f"Error processing PDF: {str(e)}"}
-
-@mcp.tool()
-async def image_to_text(image_data: str) -> Dict[str, Any]:
-    """
-    Extract text from an image using OCR.
-    
-    Args:
-        image_data: Base64 encoded image data
-        
-    Returns:
-        Dictionary containing extracted text and metadata
-    """
-    try:
-        # Decode base64 image data
-        image_bytes = base64.b64decode(image_data)
-        
-        # Open image
-        image = Image.open(io.BytesIO(image_bytes))
-        
-        # Extract text
-        text = extract_text_from_image(image)
-        
         return {
-            "success": True,
-            "extracted_text": text,
-            "character_count": len(text),
-            "word_count": len(text.split()),
-            "image_size": image.size,
-            "image_mode": image.mode
+            "success": False,
+            "error": f"Error processing document with Mistral OCR: {str(e)}",
+            "document_url": document_url
         }
-    except Exception as e:
-        return {"error": f"Error processing image: {str(e)}"}

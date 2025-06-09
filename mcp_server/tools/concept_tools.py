@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import sys
 import os
 from pathlib import Path
+import json
 
 # Add the parent directory to the Python path
 current_dir = Path(__file__).parent
@@ -27,74 +28,42 @@ from resources.concept_graph import get_concept, get_all_concepts
 
 # Import MCP
 from mcp_server.mcp_instance import mcp
+from mcp_server.model.gemini_flash import GeminiFlash
+
+MODEL = GeminiFlash()
 
 @mcp.tool()
-async def get_concept_tool(concept_id: str = None) -> Dict[str, Any]:
+async def get_concept_tool(concept_id: str = None) -> dict:
     """
-    Get a specific concept or all concepts from the knowledge graph.
-    
-    Args:
-        concept_id: Optional concept ID to retrieve a specific concept
-        
-    Returns:
-        Dictionary containing the requested concept(s)
+    Get a specific concept or all concepts from the knowledge graph, fully LLM-driven.
+    If a concept_id is provided, use Gemini to generate a JSON object with explanation, key points, and example.
     """
-    if concept_id:
-        concept = get_concept(concept_id)
-        if not concept:
-            return {"error": f"Concept {concept_id} not found"}
-        return {"concept": concept}
-    return get_all_concepts()
+    if not concept_id:
+        return {"error": "concept_id is required for LLM-driven mode"}
+    prompt = (
+        f"Explain the concept '{concept_id}' in detail. "
+        f"Return a JSON object with fields: explanation (string), key_points (list of strings), and example (string)."
+    )
+    llm_response = await MODEL.generate_text(prompt)
+    try:
+        data = json.loads(llm_response)
+    except Exception:
+        data = {"llm_raw": llm_response, "error": "Failed to parse LLM output as JSON"}
+    return data
 
 @mcp.tool()
-async def assess_skill_tool(student_id: str, concept_id: str) -> Dict[str, Any]:
+async def assess_skill_tool(student_id: str, concept_id: str) -> dict:
     """
-    Assess a student's understanding of a specific concept.
-    
-    Args:
-        student_id: Unique identifier for the student
-        concept_id: ID of the concept to assess
-        
-    Returns:
-        Dictionary containing assessment results
+    Assess a student's understanding of a specific concept, fully LLM-driven.
+    Use Gemini to generate a JSON object with a score (0-1), feedback, and recommendations.
     """
-    # Get concept data
-    concept_data = get_concept(concept_id)
-    if not concept_data:
-        return {"error": f"Cannot assess skill: Concept {concept_id} not found"}
-    
-    concept_name = concept_data.get("name", concept_id)
-    
-    # Generate a score based on concept difficulty or random
-    score = random.uniform(0.2, 1.0)  # Random score between 0.2 and 1.0
-    
-    # Set timestamp with timezone
-    timestamp = datetime.now(timezone.utc).isoformat()
-    
-    # Generate feedback based on score
-    feedback = {
-        "strengths": [f"Good understanding of {concept_name} fundamentals"],
-        "areas_for_improvement": [f"Could work on advanced applications of {concept_name}"],
-        "recommendations": [
-            f"Review {concept_name} practice problems",
-            f"Watch tutorial videos on {concept_name}"
-        ]
-    }
-    
-    # Adjust feedback based on score
-    if score < 0.5:
-        feedback["strengths"] = [f"Basic understanding of {concept_name}"]
-        feedback["areas_for_improvement"] = [
-            f"Needs to strengthen fundamental knowledge of {concept_name}",
-            f"Practice more exercises on {concept_name}"
-        ]
-    
-    # Return assessment results
-    return {
-        "student_id": student_id,
-        "concept_id": concept_id,
-        "concept_name": concept_name,
-        "score": round(score, 2),  # Round to 2 decimal places
-        "timestamp": timestamp,
-        "feedback": feedback
-    }
+    prompt = (
+        f"A student (ID: {student_id}) is being assessed on the concept '{concept_id}'. "
+        f"Generate a JSON object with: score (float 0-1), feedback (string), and recommendations (list of strings)."
+    )
+    llm_response = await MODEL.generate_text(prompt)
+    try:
+        data = json.loads(llm_response)
+    except Exception:
+        data = {"llm_raw": llm_response, "error": "Failed to parse LLM output as JSON"}
+    return data

@@ -110,22 +110,43 @@ async def check_originality_endpoint(request: dict):
         raise HTTPException(status_code=400, detail="submission (string) and reference_sources (array) are required")
     return await interaction_tools.check_submission_originality(submission, reference_sources)
 
-# API endpoints - PDF OCR
-@api_app.post("/api/pdf-ocr")
-async def pdf_ocr_endpoint(
-    file: UploadFile = File(...),
-    filename: str = Form(None)
+# API endpoints - Document OCR
+@api_app.post("/api/document-ocr")
+async def document_ocr_endpoint(
+    file: UploadFile = File(...)
 ):
     try:
-        pdf_data = await file.read()
-        pdf_b64 = base64.b64encode(pdf_data).decode('utf-8')
-        result = await ocr_tools.pdf_ocr({
-            "pdf_data": pdf_b64,
-            "filename": filename or file.filename
-        })
-        return result
+        # Save the uploaded file to a temporary location
+        import tempfile
+        import os
+        
+        # Get the file extension
+        file_extension = os.path.splitext(file.filename)[1].lower()
+        
+        # Create a temporary file with the same extension
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Upload the file to storage and get the URL
+            from mcp_server.utils.azure_upload import upload_to_azure
+            document_url = upload_to_azure(temp_file_path)
+            
+            # Process the document with OCR
+            result = await ocr_tools.mistral_document_ocr(document_url)
+            return result
+            
+        finally:
+            # Clean up the temporary file
+            try:
+                os.unlink(temp_file_path)
+            except:
+                pass
+                
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Error processing document: {str(e)}")
 
 # API endpoints - Learning Path
 @api_app.post("/api/learning-path")

@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import sys
 import os
 from pathlib import Path
+import json
 
 # Add the parent directory to the Python path
 current_dir = Path(__file__).parent
@@ -27,6 +28,9 @@ from resources.concept_graph import CONCEPT_GRAPH
 
 # Import MCP
 from mcp_server.mcp_instance import mcp
+from mcp_server.model.gemini_flash import GeminiFlash
+
+MODEL = GeminiFlash()
 
 def get_prerequisites(concept_id: str, visited: Optional[set] = None) -> List[Dict[str, Any]]:
     """
@@ -143,20 +147,18 @@ def generate_learning_path(concept_ids: List[str], student_level: str = "beginne
     }
 
 @mcp.tool()
-async def get_learning_path(student_id: str, concept_ids: List[str], student_level: Optional[str] = None) -> Dict[str, Any]:
+async def get_learning_path(student_id: str, concept_ids: list, student_level: str = "beginner") -> dict:
     """
-    Generate a personalized learning path for a student.
-    
-    Args:
-        student_id: Unique identifier for the student
-        concept_ids: List of concept IDs to include in the learning path
-        student_level: Optional student level (beginner, intermediate, advanced)
-        
-    Returns:
-        Dictionary containing the learning path
+    Generate a personalized learning path for a student, fully LLM-driven.
+    Use Gemini to generate a JSON object with a list of steps, each with concept name, description, estimated time, and recommended resources.
     """
-    # In a real implementation, we would look up the student's level from their profile
-    if not student_level:
-        student_level = "beginner"  # Default level
-    
-    return generate_learning_path(concept_ids, student_level)
+    prompt = (
+        f"A student (ID: {student_id}) with level '{student_level}' needs a learning path for these concepts: {concept_ids}. "
+        f"Return a JSON object with a 'learning_path' field: a list of steps, each with concept_name, description, estimated_time_minutes, and resources (list)."
+    )
+    llm_response = await MODEL.generate_text(prompt)
+    try:
+        data = json.loads(llm_response)
+    except Exception:
+        data = {"llm_raw": llm_response, "error": "Failed to parse LLM output as JSON"}
+    return data

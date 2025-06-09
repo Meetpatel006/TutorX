@@ -37,8 +37,7 @@ async def load_concept_graph(concept_id: str = None):
         async with sse_client(SERVER_URL) as (sse, write):
             async with ClientSession(sse, write) as session:
                 await session.initialize()
-                # Use MCP resource call for concept graph
-                result = await session.call_resource("resources/read", {"uri": f"concept-graph://{concept_id}" if concept_id else "concept-graph://"})
+                result = await session.call_tool("get_concept_graph_tool", {"concept_id": concept_id} if concept_id else {})
                 print(f"[DEBUG] Server response: {result}")
                 if not result or not isinstance(result, dict):
                     error_msg = "Invalid server response"
@@ -68,16 +67,18 @@ async def load_concept_graph(concept_id: str = None):
                 related_concepts = []
                 if "related" in concept:
                     for rel_id in concept["related"]:
-                        rel_result = await session.call_tool("get_concept_graph", {"concept_id": rel_id})
+                        rel_result = await session.call_tool("get_concept_graph_tool", {"concept_id": rel_id})
                         if "error" not in rel_result:
-                            G.add_node(rel_id, label=rel_result["name"], type="related")
+                            rel_concept = rel_result.get("concept", {})
+                            G.add_node(rel_id, label=rel_concept.get("name", rel_id), type="related")
                             G.add_edge(concept["id"], rel_id, relationship="related_to")
-                            related_concepts.append([rel_id, rel_result.get("name", ""), rel_result.get("description", "")])
+                            related_concepts.append([rel_id, rel_concept.get("name", ""), rel_concept.get("description", "")])
                 if "prerequisites" in concept:
                     for prereq_id in concept["prerequisites"]:
-                        prereq_result = await session.call_tool("get_concept_graph", {"concept_id": prereq_id})
+                        prereq_result = await session.call_tool("get_concept_graph_tool", {"concept_id": prereq_id})
                         if "error" not in prereq_result:
-                            G.add_node(prereq_id, label=prereq_result["name"], type="prerequisite")
+                            prereq_concept = prereq_result.get("concept", {})
+                            G.add_node(prereq_id, label=prereq_concept.get("name", prereq_id), type="prerequisite")
                             G.add_edge(prereq_id, concept["id"], relationship="prerequisite_for")
                 plt.figure(figsize=(10, 8))
                 pos = nx.spring_layout(G)
@@ -97,13 +98,7 @@ async def load_concept_graph(concept_id: str = None):
                 nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=8)
                 plt.title(f"Concept Graph: {concept.get('name', concept_id)}")
                 plt.axis("off")
-                concept_details = {
-                    "id": concept.get("id", ""),
-                    "name": concept.get("name", ""),
-                    "description": concept.get("description", ""),
-                    "related_concepts_count": len(concept.get("related", [])),
-                    "prerequisites_count": len(concept.get("prerequisites", []))
-                }
+                concept_details = concept
                 return plt.gcf(), concept_details, related_concepts
     except Exception as e:
         import traceback
@@ -129,10 +124,11 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 gr.Markdown("## Concept Graph Visualization")
                 with gr.Row():
                     with gr.Column(scale=3):
-                        concept_id = gr.Dropdown(
-                            label="Select a Concept",
-                            choices=["python", "functions", "oop", "data_structures"],
-                            value="python",
+                        # Change from dropdown to textbox for concept input
+                        concept_input_box = gr.Textbox(
+                            label="Enter Concept Name",
+                            placeholder="e.g., python, functions, oop, data_structures",
+                            lines=1,
                             interactive=True
                         )
                         load_concept_btn = gr.Button("Load Concept Graph", variant="primary")
@@ -154,14 +150,14 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 # Button click handler
                 load_concept_btn.click(
                     fn=load_concept_graph,
-                    inputs=[concept_id],
+                    inputs=[concept_input_box],
                     outputs=[graph_output, concept_details, related_concepts]
                 )
                 
                 # Load default concept on tab click
                 concept_graph_tab.load(
                     fn=load_concept_graph,
-                    inputs=[concept_id],
+                    inputs=[concept_input_box],
                     outputs=[graph_output, concept_details, related_concepts]
                 )
             
@@ -196,7 +192,6 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                         difficulty = max(1, min(5, difficulty))
                     except (ValueError, TypeError):
                         difficulty = 3
-                    # Map numeric difficulty to string
                     if difficulty <= 2:
                         difficulty_str = "easy"
                     elif difficulty == 3:
@@ -247,59 +242,32 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 outputs=[lesson_output]
             )
             
-            gr.Markdown("## Curriculum Standards")
-            
+            gr.Markdown("## Learning Path Generation")
             with gr.Row():
                 with gr.Column():
-                    country_input = gr.Dropdown(
-                        choices=["US", "UK"],
-                        label="Country",
-                        value="US"
-                    )
-                    standards_btn = gr.Button("Get Standards")
-                
+                    lp_student_id = gr.Textbox(label="Student ID", value=student_id)
+                    lp_concept_ids = gr.Textbox(label="Concept IDs (comma-separated)", placeholder="e.g., python,functions,oop")
+                    lp_student_level = gr.Dropdown(choices=["beginner", "intermediate", "advanced"], value="beginner", label="Student Level")
+                    lp_btn = gr.Button("Generate Learning Path")
                 with gr.Column():
-                    standards_output = gr.JSON(label="Curriculum Standards")
-            
-            async def get_standards_async(country):
+                    lp_output = gr.JSON(label="Learning Path")
+            async def on_generate_learning_path(student_id, concept_ids, student_level):
                 try:
-                    # Convert display text to lowercase for the API
-                    country_code = country.lower()
                     async with sse_client(SERVER_URL) as (sse, write):
                         async with ClientSession(sse, write) as session:
                             await session.initialize()
-                            response = await session.call_tool("get_curriculum_standards", {"country_code": country_code})
-                            
-                            # Format the response for better display
-                            if "standards" in response:
-                                formatted = {
-                                    "country": response["standards"]["name"],
-                                    "subjects": {},
-                                    "website": response["standards"].get("website", "")
-                                }
-                                
-                                # Format subjects and domains
-                                for subj_key, subj_info in response["standards"]["subjects"].items():
-                                    formatted["subjects"][subj_key] = {
-                                        "description": subj_info["description"],
-                                        "domains": subj_info["domains"]
-                                    }
-                                
-                                # Add grade levels or key stages if available
-                                if "grade_levels" in response["standards"]:
-                                    formatted["grade_levels"] = response["standards"]["grade_levels"]
-                                elif "key_stages" in response["standards"]:
-                                    formatted["key_stages"] = response["standards"]["key_stages"]
-                                    
-                                return formatted
-                            return response
+                            result = await session.call_tool("get_learning_path", {
+                                "student_id": student_id,
+                                "concept_ids": [c.strip() for c in concept_ids.split(",") if c.strip()],
+                                "student_level": student_level
+                            })
+                            return result
                 except Exception as e:
-                    return {"error": f"Failed to fetch standards: {str(e)}"}
-                
-            standards_btn.click(
-                fn=get_standards_async,
-                inputs=[country_input],
-                outputs=[standards_output]
+                    return {"error": str(e)}
+            lp_btn.click(
+                fn=on_generate_learning_path,
+                inputs=[lp_student_id, lp_concept_ids, lp_student_level],
+                outputs=[lp_output]
             )
         
         # Tab 3: Multi-Modal Interaction
@@ -326,40 +294,59 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 outputs=[text_output]
             )
             
-            gr.Markdown("## PDF OCR and Summarization (Coming Soon)")
+            # Document OCR (PDF, images, etc.)
+            gr.Markdown("## Document OCR & LLM Analysis")
             with gr.Row():
                 with gr.Column():
-                    pdf_input = gr.File(label="Upload PDF", file_types=[".pdf"])
-                    ocr_btn = gr.Button("Extract Text")
-                
+                    doc_input = gr.File(label="Upload PDF or Document", file_types=[".pdf", ".jpg", ".jpeg", ".png"])
+                    doc_ocr_btn = gr.Button("Extract Text & Analyze")
                 with gr.Column():
-                    summary_output = gr.JSON(label="Summary")
-            
-            async def pdf_ocr_async(pdf_file):
-                if not pdf_file:
-                    return {"error": "No PDF file provided", "success": False}
+                    doc_output = gr.JSON(label="Document OCR & LLM Analysis")
+            async def upload_file_to_storage(file_path):
+                """Helper function to upload file to storage API"""
                 try:
-                    # Get the file path from the Gradio file object
-                    if isinstance(pdf_file, dict):
-                        file_path = pdf_file.get("path", "")
+                    url = "https://storage-bucket-api.vercel.app/upload"
+                    with open(file_path, 'rb') as f:
+                        files = {'file': (os.path.basename(file_path), f)}
+                        response = requests.post(url, files=files)
+                        response.raise_for_status()
+                        return response.json()
+                except Exception as e:
+                    return {"error": f"Error uploading file to storage: {str(e)}", "success": False}
+
+            async def document_ocr_async(file):
+                if not file:
+                    return {"error": "No file provided", "success": False}
+                try:
+                    if isinstance(file, dict):
+                        file_path = file.get("path", "")
                     else:
-                        file_path = pdf_file
-                    
+                        file_path = file
                     if not file_path or not os.path.exists(file_path):
                         return {"error": "File not found", "success": False}
-                        
+                    
+                    # Upload file to storage API
+                    upload_result = await upload_file_to_storage(file_path)
+                    if not upload_result.get("success"):
+                        return upload_result
+                    
+                    # Get the storage URL from the upload response
+                    storage_url = upload_result.get("storage_url")
+                    if not storage_url:
+                        return {"error": "No storage URL returned from upload", "success": False}
+                    
+                    # Use the storage URL for OCR processing
                     async with sse_client(SERVER_URL) as (sse, write):
                         async with ClientSession(sse, write) as session:
                             await session.initialize()
-                            response = await session.call_tool("pdf_ocr", {"pdf_file": file_path})
+                            response = await session.call_tool("mistral_document_ocr", {"document_url": storage_url})
                             return response
                 except Exception as e:
-                    return {"error": f"Error processing PDF: {str(e)}", "success": False}
-                
-            ocr_btn.click(
-                fn=pdf_ocr_async,
-                inputs=[pdf_input],
-                outputs=[summary_output]
+                    return {"error": f"Error processing document: {str(e)}", "success": False}
+            doc_ocr_btn.click(
+                fn=document_ocr_async,
+                inputs=[doc_input],
+                outputs=[doc_output]
             )
         
         # Tab 4: Analytics
@@ -387,7 +374,7 @@ with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
                 async with sse_client(SERVER_URL) as (sse, write):
                     async with ClientSession(sse, write) as session:
                         await session.initialize()
-                        response = await session.call_tool("check_submission_originality", {"submission": submission, "reference_sources": reference})
+                        response = await session.call_tool("check_submission_originality", {"submission": submission, "reference_sources": [reference] if isinstance(reference, str) else reference})
                         return response
                 
             plagiarism_btn.click(

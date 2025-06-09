@@ -10,7 +10,7 @@ from .concept_graph_tools import get_concept_graph_tool  # noqa
 from .lesson_tools import generate_lesson_tool  # noqa
 from .quiz_tools import generate_quiz_tool  # noqa
 from .interaction_tools import text_interaction, check_submission_originality  # noqa
-from .ocr_tools import pdf_ocr, image_to_text  # noqa
+from .ocr_tools import mistral_document_ocr  # noqa
 from .learning_path_tools import get_learning_path  # noqa
 
 __all__ = [
@@ -30,8 +30,7 @@ __all__ = [
     'check_submission_originality',
     
     # OCR tools
-    'pdf_ocr',
-    'image_to_text',
+    'mistral_document_ocr',
     
     # Learning path tools
     'get_learning_path',
