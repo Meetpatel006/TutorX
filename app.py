@@ -447,18 +447,18 @@ async def on_generate_learning_path(student_id, concept_ids, student_level):
                     "student_level": student_level
                 })
                 if hasattr(result, 'content') and isinstance(result.content, list):
-                    for item in result.content:
+                    for item in response.content:
                         if hasattr(item, 'text') and item.text:
                             try:
                                 lp_data = json.loads(item.text)
                                 return lp_data
                             except Exception:
                                 return {"raw_pretty": json.dumps(item.text, indent=2)}
-                if isinstance(result, dict):
-                    return result
-                if isinstance(result, str):
+                if isinstance(response, dict):
+                    return response
+                if isinstance(response, str):
                     try:
-                        return json.loads(result)
+                        return json.loads(response)
                     except Exception:
                         return {"raw_pretty": json.dumps(result, indent=2)}
                 return {"raw_pretty": json.dumps(str(result), indent=2)}
