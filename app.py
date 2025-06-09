@@ -6,7 +6,7 @@ import os
 import json
 import asyncio
 import gradio as gr
-from typing import Optional, Dict, Any, List, Union, Tuple
+from typing import Optional, Dict, Any, List, Union, Tuple, Callable
 import requests
 import tempfile
 import base64
@@ -14,6 +14,8 @@ import re
 import networkx as nx
 import matplotlib
 import matplotlib.pyplot as plt
+import time
+from datetime import datetime
 
 # Set matplotlib to use 'Agg' backend to avoid GUI issues in Gradio
 matplotlib.use('Agg')
@@ -27,6 +29,25 @@ from mcp.types import TextContent, CallToolResult
 SERVER_URL = "https://tutorx-mcp.onrender.com/sse"  # Ensure this is the SSE endpoint
 
 # Utility functions
+
+async def ping_mcp_server() -> None:
+    """Send a ping request to the MCP server"""
+    try:
+        async with sse_client(SERVER_URL) as (sse, write):
+            async with ClientSession(sse, write) as session:
+                await session.initialize()
+                print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Successfully pinged MCP server")
+    except Exception as e:
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Error pinging MCP server: {str(e)}")
+
+async def start_periodic_ping(interval_minutes: int = 10) -> None:
+    """Start a background task to ping the MCP server periodically"""
+    while True:
+        await ping_mcp_server()
+        await asyncio.sleep(interval_minutes * 60)
+
+# Start the periodic ping task when the module loads
+ping_task = asyncio.create_task(start_periodic_ping())
 
 
 async def load_concept_graph(concept_id: str = None) -> Tuple[Optional[plt.Figure], Dict, List]:
