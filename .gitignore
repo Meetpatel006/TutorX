@@ -10,5 +10,4 @@ wheels/
 # Virtual environments
 .venv
 
-# Documentation
-ARCHITECTURE.md
+
