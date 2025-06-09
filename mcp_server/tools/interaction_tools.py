@@ -57,7 +57,7 @@ async def check_submission_originality(submission: str, reference_sources: list)
     )
     llm_response = await MODEL.generate_text(prompt)
     try:
-        data = json.loads(llm_response)
+        data = extract_json_from_text(llm_response)
     except Exception:
         data = {"llm_raw": llm_response, "error": "Failed to parse LLM output as JSON"}
     return data
