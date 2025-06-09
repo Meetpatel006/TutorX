@@ -556,17 +556,17 @@ def create_gradio_interface():
         with gr.Row():
             with gr.Column():
                 gr.Markdown("""
-                # 📚 TutorX Educational AI Platform
+                #  TutorX Educational AI Platform
                 *An adaptive, multi-modal, and collaborative AI tutoring platform built with MCP.*
                 """)
 
         # Add some spacing
         gr.Markdown("---")
 
-        # Main Tabs with scrollable container
+# Main Tabs with scrollable container
         with gr.Tabs() as tabs:
             # Tab 1: Core Features
-            with gr.Tab("1️⃣ Core Features", elem_id="core_features_tab"):
+            with gr.Tab("1 Core Features", elem_id="core_features_tab"):
                 with gr.Row():
                     with gr.Column():
                         gr.Markdown("## 🔍 Concept Graph Visualization")
@@ -673,7 +673,7 @@ def create_gradio_interface():
                 )
             
             # Tab 2: Advanced Features
-            with gr.Tab("2️⃣ Advanced Features", elem_id="advanced_features_tab"):
+            with gr.Tab("2 Advanced Features", elem_id="advanced_features_tab"):
                 gr.Markdown("## Lesson Generation")
 
                 with gr.Row():
@@ -711,7 +711,7 @@ def create_gradio_interface():
                 )
         
             # Tab 3: Interactive Tools
-            with gr.Tab("3️⃣ Interactive Tools", elem_id="interactive_tools_tab"):
+            with gr.Tab("3 Interactive Tools", elem_id="interactive_tools_tab"):
                 gr.Markdown("## Text Interaction")
 
                 with gr.Row():
@@ -746,7 +746,7 @@ def create_gradio_interface():
                 )
             
             # Tab 4: Data Analytics
-            with gr.Tab("4️⃣ Data Analytics", elem_id="data_analytics_tab"):
+            with gr.Tab("4 Data Analytics", elem_id="data_analytics_tab"):
                 gr.Markdown("## Plagiarism Detection")
                 
                 with gr.Row():
@@ -786,15 +786,15 @@ def create_gradio_interface():
                 with gr.Column():
                     gr.Markdown("### Quick Links")
                     gr.Markdown("""
-                    - [Documentation](#)
-                    - [GitHub Repository](#)
-                    - [Report an Issue](#)
+                    - [Documentation](https://github.com/Meetpatel006/TutorX/blob/main/README.md)
+                    - [GitHub Repository](https://github.com/Meetpatel006/TutorX)
+                    - [Report an Issue](https://github.com/Meetpatel006/TutorX/issues)
                     """)
             
-            # Add some spacing at the bottom
-            gr.Markdown("\n\n")
-            gr.Markdown("---")
-            gr.Markdown("© 2025 TutorX - All rights reserved")
+                    # Add some spacing at the bottom
+                    gr.Markdown("\n\n")
+                gr.Markdown("---")
+                gr.Markdown("© 2025 TutorX - All rights reserved")
         
         return demo
 
