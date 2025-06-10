@@ -57,6 +57,8 @@ from mcp_server.tools import interaction_tools
 from mcp_server.tools import ocr_tools
 from mcp_server.tools import learning_path_tools
 from mcp_server.tools import concept_graph_tools
+from mcp_server.tools import ai_tutor_tools
+from mcp_server.tools import content_generation_tools
 
 
 # Mount the SSE transport for MCP at '/sse/' (with trailing slash)
@@ -241,6 +243,154 @@ async def get_quiz_session_status_endpoint(request: dict):
     if not session_id:
         raise HTTPException(status_code=400, detail="session_id is required")
     return await get_quiz_session_status_tool(session_id)
+
+# API endpoints - AI Tutoring
+from mcp_server.tools.ai_tutor_tools import (
+    start_tutoring_session,
+    ai_tutor_chat,
+    get_step_by_step_guidance,
+    get_alternative_explanations,
+    update_student_understanding,
+    get_tutoring_session_status,
+    end_tutoring_session,
+    list_active_tutoring_sessions
+)
+
+@api_app.post("/api/start-tutoring-session")
+async def start_tutoring_session_endpoint(request: dict):
+    student_id = request.get("student_id")
+    subject = request.get("subject", "general")
+    learning_objectives = request.get("learning_objectives", [])
+    if not student_id:
+        raise HTTPException(status_code=400, detail="student_id is required")
+    return await start_tutoring_session(student_id, subject, learning_objectives)
+
+@api_app.post("/api/ai-tutor-chat")
+async def ai_tutor_chat_endpoint(request: dict):
+    session_id = request.get("session_id")
+    student_query = request.get("student_query")
+    request_type = request.get("request_type", "explanation")
+    if not session_id or not student_query:
+        raise HTTPException(status_code=400, detail="session_id and student_query are required")
+    return await ai_tutor_chat(session_id, student_query, request_type)
+
+@api_app.post("/api/step-by-step-guidance")
+async def step_by_step_guidance_endpoint(request: dict):
+    session_id = request.get("session_id")
+    concept = request.get("concept")
+    current_step = request.get("current_step", 1)
+    if not session_id or not concept:
+        raise HTTPException(status_code=400, detail="session_id and concept are required")
+    return await get_step_by_step_guidance(session_id, concept, current_step)
+
+@api_app.post("/api/alternative-explanations")
+async def alternative_explanations_endpoint(request: dict):
+    session_id = request.get("session_id")
+    concept = request.get("concept")
+    explanation_types = request.get("explanation_types", [])
+    if not session_id or not concept:
+        raise HTTPException(status_code=400, detail="session_id and concept are required")
+    return await get_alternative_explanations(session_id, concept, explanation_types)
+
+@api_app.post("/api/update-student-understanding")
+async def update_student_understanding_endpoint(request: dict):
+    session_id = request.get("session_id")
+    concept = request.get("concept")
+    understanding_level = request.get("understanding_level")
+    feedback = request.get("feedback", "")
+    if not session_id or not concept or understanding_level is None:
+        raise HTTPException(status_code=400, detail="session_id, concept, and understanding_level are required")
+    return await update_student_understanding(session_id, concept, understanding_level, feedback)
+
+@api_app.get("/api/tutoring-session-status/{session_id}")
+async def tutoring_session_status_endpoint(session_id: str):
+    return await get_tutoring_session_status(session_id)
+
+@api_app.post("/api/end-tutoring-session")
+async def end_tutoring_session_endpoint(request: dict):
+    session_id = request.get("session_id")
+    session_summary = request.get("session_summary", "")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id is required")
+    return await end_tutoring_session(session_id, session_summary)
+
+@api_app.get("/api/active-tutoring-sessions")
+async def active_tutoring_sessions_endpoint(student_id: str = None):
+    return await list_active_tutoring_sessions(student_id)
+
+# API endpoints - Content Generation
+from mcp_server.tools.content_generation_tools import (
+    generate_interactive_exercise,
+    generate_adaptive_content_sequence,
+    generate_scenario_based_learning,
+    generate_multimodal_content,
+    generate_adaptive_assessment,
+    generate_gamified_content,
+    validate_generated_content
+)
+
+@api_app.post("/api/generate-interactive-exercise")
+async def generate_interactive_exercise_endpoint(request: dict):
+    concept = request.get("concept")
+    exercise_type = request.get("exercise_type", "problem_solving")
+    difficulty_level = request.get("difficulty_level", 0.5)
+    student_level = request.get("student_level", "intermediate")
+    if not concept:
+        raise HTTPException(status_code=400, detail="concept is required")
+    return await generate_interactive_exercise(concept, exercise_type, difficulty_level, student_level)
+
+@api_app.post("/api/generate-adaptive-content-sequence")
+async def generate_adaptive_content_sequence_endpoint(request: dict):
+    topic = request.get("topic")
+    student_profile = request.get("student_profile", {})
+    sequence_length = request.get("sequence_length", 5)
+    if not topic:
+        raise HTTPException(status_code=400, detail="topic is required")
+    return await generate_adaptive_content_sequence(topic, student_profile, sequence_length)
+
+@api_app.post("/api/generate-scenario-based-learning")
+async def generate_scenario_based_learning_endpoint(request: dict):
+    concept = request.get("concept")
+    scenario_type = request.get("scenario_type", "real_world")
+    complexity_level = request.get("complexity_level", "moderate")
+    if not concept:
+        raise HTTPException(status_code=400, detail="concept is required")
+    return await generate_scenario_based_learning(concept, scenario_type, complexity_level)
+
+@api_app.post("/api/generate-multimodal-content")
+async def generate_multimodal_content_endpoint(request: dict):
+    concept = request.get("concept")
+    modalities = request.get("modalities", ["visual", "auditory", "kinesthetic", "reading"])
+    target_audience = request.get("target_audience", "general")
+    if not concept:
+        raise HTTPException(status_code=400, detail="concept is required")
+    return await generate_multimodal_content(concept, modalities, target_audience)
+
+@api_app.post("/api/generate-adaptive-assessment")
+async def generate_adaptive_assessment_endpoint(request: dict):
+    concept = request.get("concept")
+    assessment_type = request.get("assessment_type", "formative")
+    student_data = request.get("student_data", {})
+    if not concept:
+        raise HTTPException(status_code=400, detail="concept is required")
+    return await generate_adaptive_assessment(concept, assessment_type, student_data)
+
+@api_app.post("/api/generate-gamified-content")
+async def generate_gamified_content_endpoint(request: dict):
+    concept = request.get("concept")
+    game_type = request.get("game_type", "quest")
+    target_age_group = request.get("target_age_group", "teen")
+    if not concept:
+        raise HTTPException(status_code=400, detail="concept is required")
+    return await generate_gamified_content(concept, game_type, target_age_group)
+
+@api_app.post("/api/validate-content")
+async def validate_content_endpoint(request: dict):
+    content_data = request.get("content_data")
+    validation_criteria = request.get("validation_criteria", {})
+    if not content_data:
+        raise HTTPException(status_code=400, detail="content_data is required")
+    return await validate_generated_content(content_data, validation_criteria)
 
 # Entrypoint for running with MCP SSE transport
 if __name__ == "__main__":

@@ -493,6 +493,64 @@ def sync_get_progress_summary(student_id, days=7):
     except Exception as e:
         return {"error": str(e)}
 
+# AI Tutoring synchronous wrappers
+def sync_start_tutoring_session(student_id, subject, learning_objectives):
+    """Synchronous wrapper for start_tutoring_session_async"""
+    try:
+        return asyncio.run(start_tutoring_session_async(student_id, subject, learning_objectives))
+    except Exception as e:
+        return {"error": str(e)}
+
+def sync_ai_tutor_chat(session_id, student_query, request_type):
+    """Synchronous wrapper for ai_tutor_chat_async"""
+    try:
+        return asyncio.run(ai_tutor_chat_async(session_id, student_query, request_type))
+    except Exception as e:
+        return {"error": str(e)}
+
+def sync_get_step_by_step_guidance(session_id, concept, current_step):
+    """Synchronous wrapper for get_step_by_step_guidance_async"""
+    try:
+        return asyncio.run(get_step_by_step_guidance_async(session_id, concept, current_step))
+    except Exception as e:
+        return {"error": str(e)}
+
+def sync_get_alternative_explanations(session_id, concept, explanation_types):
+    """Synchronous wrapper for get_alternative_explanations_async"""
+    try:
+        return asyncio.run(get_alternative_explanations_async(session_id, concept, explanation_types))
+    except Exception as e:
+        return {"error": str(e)}
+
+def sync_end_tutoring_session(session_id, session_summary):
+    """Synchronous wrapper for end_tutoring_session_async"""
+    try:
+        return asyncio.run(end_tutoring_session_async(session_id, session_summary))
+    except Exception as e:
+        return {"error": str(e)}
+
+# Content Generation synchronous wrappers
+def sync_generate_interactive_exercise(concept, exercise_type, difficulty_level, student_level):
+    """Synchronous wrapper for generate_interactive_exercise_async"""
+    try:
+        return asyncio.run(generate_interactive_exercise_async(concept, exercise_type, difficulty_level, student_level))
+    except Exception as e:
+        return {"error": str(e)}
+
+def sync_generate_scenario_based_learning(concept, scenario_type, complexity_level):
+    """Synchronous wrapper for generate_scenario_based_learning_async"""
+    try:
+        return asyncio.run(generate_scenario_based_learning_async(concept, scenario_type, complexity_level))
+    except Exception as e:
+        return {"error": str(e)}
+
+def sync_generate_gamified_content(concept, game_type, target_age_group):
+    """Synchronous wrapper for generate_gamified_content_async"""
+    try:
+        return asyncio.run(generate_gamified_content_async(concept, game_type, target_age_group))
+    except Exception as e:
+        return {"error": str(e)}
+
 # Define async functions outside the interface
 async def on_generate_quiz(concept, difficulty):
     try:
@@ -727,6 +785,120 @@ async def document_ocr_async(file):
                 return await extract_response_content(response)
     except Exception as e:
         return {"error": f"Error processing document: {str(e)}", "success": False}
+
+# AI Tutoring async functions
+async def start_tutoring_session_async(student_id, subject, learning_objectives):
+    try:
+        async with sse_client(SERVER_URL) as (sse, write):
+            async with ClientSession(sse, write) as session:
+                await session.initialize()
+                response = await session.call_tool("start_tutoring_session", {
+                    "student_id": student_id,
+                    "subject": subject,
+                    "learning_objectives": learning_objectives
+                })
+                return await extract_response_content(response)
+    except Exception as e:
+        return {"error": str(e)}
+
+async def ai_tutor_chat_async(session_id, student_query, request_type):
+    try:
+        async with sse_client(SERVER_URL) as (sse, write):
+            async with ClientSession(sse, write) as session:
+                await session.initialize()
+                response = await session.call_tool("ai_tutor_chat", {
+                    "session_id": session_id,
+                    "student_query": student_query,
+                    "request_type": request_type
+                })
+                return await extract_response_content(response)
+    except Exception as e:
+        return {"error": str(e)}
+
+async def get_step_by_step_guidance_async(session_id, concept, current_step):
+    try:
+        async with sse_client(SERVER_URL) as (sse, write):
+            async with ClientSession(sse, write) as session:
+                await session.initialize()
+                response = await session.call_tool("get_step_by_step_guidance", {
+                    "session_id": session_id,
+                    "concept": concept,
+                    "current_step": current_step
+                })
+                return await extract_response_content(response)
+    except Exception as e:
+        return {"error": str(e)}
+
+async def get_alternative_explanations_async(session_id, concept, explanation_types):
+    try:
+        async with sse_client(SERVER_URL) as (sse, write):
+            async with ClientSession(sse, write) as session:
+                await session.initialize()
+                response = await session.call_tool("get_alternative_explanations", {
+                    "session_id": session_id,
+                    "concept": concept,
+                    "explanation_types": explanation_types
+                })
+                return await extract_response_content(response)
+    except Exception as e:
+        return {"error": str(e)}
+
+async def end_tutoring_session_async(session_id, session_summary):
+    try:
+        async with sse_client(SERVER_URL) as (sse, write):
+            async with ClientSession(sse, write) as session:
+                await session.initialize()
+                response = await session.call_tool("end_tutoring_session", {
+                    "session_id": session_id,
+                    "session_summary": session_summary
+                })
+                return await extract_response_content(response)
+    except Exception as e:
+        return {"error": str(e)}
+
+# Content Generation async functions
+async def generate_interactive_exercise_async(concept, exercise_type, difficulty_level, student_level):
+    try:
+        async with sse_client(SERVER_URL) as (sse, write):
+            async with ClientSession(sse, write) as session:
+                await session.initialize()
+                response = await session.call_tool("generate_interactive_exercise", {
+                    "concept": concept,
+                    "exercise_type": exercise_type,
+                    "difficulty_level": difficulty_level,
+                    "student_level": student_level
+                })
+                return await extract_response_content(response)
+    except Exception as e:
+        return {"error": str(e)}
+
+async def generate_scenario_based_learning_async(concept, scenario_type, complexity_level):
+    try:
+        async with sse_client(SERVER_URL) as (sse, write):
+            async with ClientSession(sse, write) as session:
+                await session.initialize()
+                response = await session.call_tool("generate_scenario_based_learning", {
+                    "concept": concept,
+                    "scenario_type": scenario_type,
+                    "complexity_level": complexity_level
+                })
+                return await extract_response_content(response)
+    except Exception as e:
+        return {"error": str(e)}
+
+async def generate_gamified_content_async(concept, game_type, target_age_group):
+    try:
+        async with sse_client(SERVER_URL) as (sse, write):
+            async with ClientSession(sse, write) as session:
+                await session.initialize()
+                response = await session.call_tool("generate_gamified_content", {
+                    "concept": concept,
+                    "game_type": game_type,
+                    "target_age_group": target_age_group
+                })
+                return await extract_response_content(response)
+    except Exception as e:
+        return {"error": str(e)}
 
 # Create Gradio interface
 def create_gradio_interface():
@@ -1093,9 +1265,225 @@ def create_gradio_interface():
                     inputs=[doc_input],
                     outputs=[doc_output]
                 )
-            
-            # Tab 4: Adaptive Learning
-            with gr.Tab("4 🧠 Adaptive Learning", elem_id="adaptive_learning_tab"):
+
+            # Tab 4: AI Tutoring
+            with gr.Tab("4 🤖 AI Tutoring", elem_id="ai_tutoring_tab"):
+                gr.Markdown("## Contextualized AI Tutoring")
+                gr.Markdown("Experience personalized AI tutoring with step-by-step guidance and alternative explanations.")
+
+                with gr.Accordion("ℹ️ How AI Tutoring Works", open=False):
+                    gr.Markdown("""
+                    ### 🎯 Contextualized Learning
+                    - **Session Memory**: AI remembers your conversation and adapts responses
+                    - **Step-by-Step Guidance**: Break down complex concepts into manageable steps
+                    - **Alternative Explanations**: Multiple ways to understand the same concept
+                    - **Personalized Feedback**: Responses tailored to your understanding level
+
+                    ### 🚀 Getting Started
+                    1. Start a tutoring session with your preferred subject
+                    2. Ask questions or request explanations
+                    3. Get step-by-step guidance for complex topics
+                    4. Request alternative explanations if needed
+                    5. End session to get a comprehensive summary
+                    """)
+
+                # Tutoring Session Management
+                with gr.Accordion("📚 Start Tutoring Session", open=True):
+                    with gr.Row():
+                        with gr.Column():
+                            tutor_student_id = gr.Textbox(label="Student ID", value=student_id)
+                            tutor_subject = gr.Textbox(label="Subject", value="Mathematics", placeholder="e.g., Mathematics, Physics, Chemistry")
+                            tutor_objectives = gr.Textbox(
+                                label="Learning Objectives (optional)",
+                                placeholder="e.g., Understand quadratic equations, Learn calculus basics",
+                                lines=2
+                            )
+                            start_tutor_btn = gr.Button("Start Tutoring Session", variant="primary")
+
+                        with gr.Column():
+                            tutor_session_output = gr.JSON(label="Session Information")
+
+                # AI Chat Interface
+                with gr.Accordion("💬 Chat with AI Tutor", open=True):
+                    with gr.Row():
+                        with gr.Column():
+                            chat_session_id = gr.Textbox(label="Session ID", placeholder="Enter session ID from above")
+                            chat_query = gr.Textbox(
+                                label="Ask Your Question",
+                                placeholder="e.g., How do I solve quadratic equations?",
+                                lines=3
+                            )
+                            chat_request_type = gr.Dropdown(
+                                choices=["explanation", "step_by_step", "alternative", "practice", "clarification"],
+                                value="explanation",
+                                label="Request Type"
+                            )
+                            chat_btn = gr.Button("Ask AI Tutor", variant="primary")
+
+                        with gr.Column():
+                            chat_response = gr.JSON(label="AI Tutor Response")
+
+                # Step-by-Step Guidance
+                with gr.Accordion("📋 Step-by-Step Guidance", open=True):
+                    with gr.Row():
+                        with gr.Column():
+                            step_session_id = gr.Textbox(label="Session ID")
+                            step_concept = gr.Textbox(label="Concept", placeholder="e.g., Solving quadratic equations")
+                            step_current = gr.Number(label="Current Step", value=1, minimum=1)
+                            get_steps_btn = gr.Button("Get Step-by-Step Guidance")
+
+                        with gr.Column():
+                            steps_output = gr.JSON(label="Step-by-Step Guidance")
+
+                # Alternative Explanations
+                with gr.Accordion("🔄 Alternative Explanations", open=True):
+                    with gr.Row():
+                        with gr.Column():
+                            alt_session_id = gr.Textbox(label="Session ID")
+                            alt_concept = gr.Textbox(label="Concept", placeholder="e.g., Photosynthesis")
+                            alt_types = gr.CheckboxGroup(
+                                choices=["visual", "analogy", "real_world", "simplified", "technical"],
+                                value=["visual", "analogy", "real_world"],
+                                label="Explanation Types"
+                            )
+                            get_alt_btn = gr.Button("Get Alternative Explanations")
+
+                        with gr.Column():
+                            alt_output = gr.JSON(label="Alternative Explanations")
+
+                # Session Management
+                with gr.Accordion("🔚 End Session & Summary", open=True):
+                    with gr.Row():
+                        with gr.Column():
+                            end_session_id = gr.Textbox(label="Session ID")
+                            session_summary = gr.Textbox(
+                                label="Session Summary (optional)",
+                                placeholder="What did you learn? Any feedback?",
+                                lines=3
+                            )
+                            end_session_btn = gr.Button("End Session & Get Summary", variant="secondary")
+
+                        with gr.Column():
+                            session_end_output = gr.JSON(label="Session Summary")
+
+                # Connect all AI tutoring buttons
+                start_tutor_btn.click(
+                    fn=lambda sid, subj, obj: sync_start_tutoring_session(sid, subj, obj.split(',') if obj else []),
+                    inputs=[tutor_student_id, tutor_subject, tutor_objectives],
+                    outputs=[tutor_session_output]
+                )
+
+                chat_btn.click(
+                    fn=sync_ai_tutor_chat,
+                    inputs=[chat_session_id, chat_query, chat_request_type],
+                    outputs=[chat_response]
+                )
+
+                get_steps_btn.click(
+                    fn=sync_get_step_by_step_guidance,
+                    inputs=[step_session_id, step_concept, step_current],
+                    outputs=[steps_output]
+                )
+
+                get_alt_btn.click(
+                    fn=sync_get_alternative_explanations,
+                    inputs=[alt_session_id, alt_concept, alt_types],
+                    outputs=[alt_output]
+                )
+
+                end_session_btn.click(
+                    fn=sync_end_tutoring_session,
+                    inputs=[end_session_id, session_summary],
+                    outputs=[session_end_output]
+                )
+
+            # Tab 5: Content Generation
+            with gr.Tab("5 🎨 Content Generation", elem_id="content_generation_tab"):
+                gr.Markdown("## Advanced Content Generation")
+                gr.Markdown("Generate interactive exercises, scenarios, and gamified content automatically.")
+
+                # Interactive Exercise Generation
+                with gr.Accordion("🎯 Interactive Exercise Generation", open=True):
+                    with gr.Row():
+                        with gr.Column():
+                            ex_concept = gr.Textbox(label="Concept", placeholder="e.g., Photosynthesis, Linear Algebra")
+                            ex_type = gr.Dropdown(
+                                choices=["problem_solving", "simulation", "case_study", "lab", "project"],
+                                value="problem_solving",
+                                label="Exercise Type"
+                            )
+                            ex_difficulty = gr.Slider(minimum=0.1, maximum=1.0, value=0.5, step=0.1, label="Difficulty Level")
+                            ex_level = gr.Dropdown(
+                                choices=["beginner", "intermediate", "advanced"],
+                                value="intermediate",
+                                label="Student Level"
+                            )
+                            gen_exercise_btn = gr.Button("Generate Interactive Exercise", variant="primary")
+
+                        with gr.Column():
+                            exercise_output = gr.JSON(label="Generated Exercise")
+
+                # Scenario-Based Learning
+                with gr.Accordion("🎭 Scenario-Based Learning", open=True):
+                    with gr.Row():
+                        with gr.Column():
+                            scenario_concept = gr.Textbox(label="Concept", placeholder="e.g., Climate Change, Economics")
+                            scenario_type = gr.Dropdown(
+                                choices=["real_world", "historical", "futuristic", "problem_solving"],
+                                value="real_world",
+                                label="Scenario Type"
+                            )
+                            scenario_complexity = gr.Dropdown(
+                                choices=["simple", "moderate", "complex"],
+                                value="moderate",
+                                label="Complexity Level"
+                            )
+                            gen_scenario_btn = gr.Button("Generate Scenario", variant="primary")
+
+                        with gr.Column():
+                            scenario_output = gr.JSON(label="Generated Scenario")
+
+                # Gamified Content
+                with gr.Accordion("🎮 Gamified Content Generation", open=True):
+                    with gr.Row():
+                        with gr.Column():
+                            game_concept = gr.Textbox(label="Concept", placeholder="e.g., Fractions, Chemical Reactions")
+                            game_type = gr.Dropdown(
+                                choices=["quest", "puzzle", "simulation", "competition", "story"],
+                                value="quest",
+                                label="Game Type"
+                            )
+                            game_age = gr.Dropdown(
+                                choices=["child", "teen", "adult"],
+                                value="teen",
+                                label="Target Age Group"
+                            )
+                            gen_game_btn = gr.Button("Generate Gamified Content", variant="primary")
+
+                        with gr.Column():
+                            game_output = gr.JSON(label="Generated Game Content")
+
+                # Connect content generation buttons
+                gen_exercise_btn.click(
+                    fn=sync_generate_interactive_exercise,
+                    inputs=[ex_concept, ex_type, ex_difficulty, ex_level],
+                    outputs=[exercise_output]
+                )
+
+                gen_scenario_btn.click(
+                    fn=sync_generate_scenario_based_learning,
+                    inputs=[scenario_concept, scenario_type, scenario_complexity],
+                    outputs=[scenario_output]
+                )
+
+                gen_game_btn.click(
+                    fn=sync_generate_gamified_content,
+                    inputs=[game_concept, game_type, game_age],
+                    outputs=[game_output]
+                )
+
+            # Tab 6: Adaptive Learning
+            with gr.Tab("6 🧠 Adaptive Learning", elem_id="adaptive_learning_tab"):
                 gr.Markdown("## Adaptive Learning System")
                 gr.Markdown("Experience personalized learning with real-time adaptation based on your performance.")
 
@@ -1264,8 +1652,8 @@ def create_gradio_interface():
                     - **Engagement Metrics**: Measures learning engagement
                     """)
 
-            # Tab 5: Data Analytics
-            with gr.Tab("5 Data Analytics", elem_id="data_analytics_tab"):
+            # Tab 7: Data Analytics
+            with gr.Tab("7 Data Analytics", elem_id="data_analytics_tab"):
                 gr.Markdown("## Plagiarism Detection")
 
                 with gr.Row():

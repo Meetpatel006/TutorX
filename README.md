@@ -18,6 +18,20 @@ A comprehensive Model Context Protocol (MCP) server for educational AI tutoring 
 
 TutorX-MCP is an adaptive, multi-modal, and collaborative AI tutoring platform that leverages the Model Context Protocol (MCP) for tool integration and Gradio for user-friendly interfaces. It provides a range of educational features accessible via both MCP clients and a dedicated web interface.
 
+## ✨ New: Enhanced AI Integration & Capabilities
+
+**🤖 Contextualized AI Tutoring:**
+- **Session-based tutoring** with persistent context and memory
+- **Step-by-step guidance** that breaks complex concepts into manageable steps
+- **Alternative explanations** using multiple approaches (visual, analogy, real-world)
+- **Adaptive responses** that adjust to student understanding levels
+
+**🎨 Advanced Automated Content Generation:**
+- **Interactive exercises** with multiple components and adaptive features
+- **Scenario-based learning** with realistic contexts and decision points
+- **Gamified content** with game mechanics and progressive difficulty
+- **Multi-modal content** supporting different learning styles
+
 ![TutorX-MCP](https://via.placeholder.com/800x400?text=TutorX-MCP+Educational+Platform)
 
 For a comprehensive analysis of the project from architectural, development, and product perspectives, please see our [Project Analysis Document](PROJECT_ANALYSIS.md).
@@ -167,6 +181,23 @@ The server exposes the following MCP tools and resources:
 - **Learning Path Tools** (learning_path_tools.py)
   - `get_learning_path`: Generate personalized learning paths based on student level and target concepts
 
+- **AI Tutoring Tools** (ai_tutor_tools.py) ✨ **NEW**
+  - `start_tutoring_session`: Start contextualized AI tutoring sessions with memory
+  - `ai_tutor_chat`: Interactive chat with AI tutor providing personalized responses
+  - `get_step_by_step_guidance`: Break down complex concepts into manageable steps
+  - `get_alternative_explanations`: Multiple explanation approaches for different learning styles
+  - `update_student_understanding`: Track and adapt to student understanding levels
+  - `end_tutoring_session`: Generate comprehensive session summaries
+
+- **Content Generation Tools** (content_generation_tools.py) ✨ **NEW**
+  - `generate_interactive_exercise`: Create engaging interactive exercises with multiple components
+  - `generate_adaptive_content_sequence`: Build adaptive content that adjusts to student performance
+  - `generate_scenario_based_learning`: Create realistic scenario-based learning experiences
+  - `generate_multimodal_content`: Generate content for different learning modalities
+  - `generate_adaptive_assessment`: Create assessments that adapt based on student responses
+  - `generate_gamified_content`: Generate game-based learning content with mechanics
+  - `validate_generated_content`: Quality-check and validate educational content
+
 - **Memory Tools** (v0.2.0)
   - `read_memory_tool`: Retrieve stored context from the Memory Bank
   - `write_memory_tool`: Store new contextual information in the Memory Bank
@@ -201,7 +232,9 @@ tutorx-mcp/
 │   │   ├── lesson_tools.py  # Lesson generation tools
 │   │   ├── ocr_tools.py     # Document OCR tools
 │   │   ├── interaction_tools.py # Student interaction tools
-│   │   └── learning_path_tools.py # Learning path tools
+│   │   ├── learning_path_tools.py # Learning path tools
+│   │   ├── ai_tutor_tools.py # ✨ Contextualized AI tutoring
+│   │   └── content_generation_tools.py # ✨ Advanced content generation
 │   └── prompts/             # LLM prompt templates
 ├── tests/                   # Test suite
 │   ├── test_mcp_server.py   # MCP server tests
@@ -275,6 +308,7 @@ python run_tests.py
 ## Documentation
 
 - [Project Analysis](PROJECT_ANALYSIS.md): Comprehensive analysis of architecture, implementation, and product features
+- [AI Integration Features](docs/AI_INTEGRATION_FEATURES.md): ✨ **NEW** - Detailed guide to contextualized AI tutoring and content generation
 - [MCP Protocol](docs/mcp.md): Details about the Model Context Protocol
 - [Product Requirements](docs/prd.md): Original requirements document
 - [SDK Documentation](docs/sdk.md): Client SDK usage
