@@ -21,8 +21,8 @@ from mcp.client.sse import sse_client
 from mcp.client.session import ClientSession
 
 # Server configuration
-SERVER_URL = "http://localhost:8000/sse"  # Ensure this is the SSE endpoint
-
+# SERVER_URL = "http://localhost:8000"  # Ensure this is the SSE endpoint
+SERVER_URL = "https://tutorx-mcp.onrender.com/sse"
 # Utility functions
 
 async def ping_mcp_server() -> None:
