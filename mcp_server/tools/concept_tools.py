@@ -17,7 +17,18 @@ sys.path.insert(0, str(parent_dir))
 
 
 # Import from local resources
-from resources.concept_graph import get_concept, get_all_concepts
+try:
+    from resources.concept_graph import get_concept, get_all_concepts
+except ImportError:
+    # Fallback for when running from different contexts
+    def get_concept(concept_id):
+        return {"id": concept_id, "name": concept_id.replace("_", " ").title(), "description": f"Description for {concept_id}"}
+
+    def get_all_concepts():
+        return {
+            "algebra_basics": {"id": "algebra_basics", "name": "Algebra Basics", "description": "Basic algebraic concepts"},
+            "linear_equations": {"id": "linear_equations", "name": "Linear Equations", "description": "Solving linear equations"}
+        }
 
 # Import MCP
 from mcp_server.mcp_instance import mcp

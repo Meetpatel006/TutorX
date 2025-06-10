@@ -58,6 +58,7 @@ from mcp_server.tools import ocr_tools
 from mcp_server.tools import learning_path_tools
 from mcp_server.tools import concept_graph_tools
 
+
 # Mount the SSE transport for MCP at '/sse/' (with trailing slash)
 api_app.mount("/sse", mcp.sse_app())
 
@@ -163,7 +164,7 @@ async def learning_path_endpoint(request: dict):
     )
 
 # API endpoints - Assess Skill
-from tools.concept_tools import assess_skill_tool
+from mcp_server.tools.concept_tools import assess_skill_tool
 @api_app.post("/api/assess-skill")
 async def assess_skill_endpoint(request: dict):
     student_id = request.get("student_id")
@@ -173,7 +174,7 @@ async def assess_skill_endpoint(request: dict):
     return await assess_skill_tool(student_id, concept_id)
 
 # API endpoints - Generate Lesson
-from tools.lesson_tools import generate_lesson_tool
+from mcp_server.tools.lesson_tools import generate_lesson_tool
 @api_app.post("/api/generate-lesson")
 async def generate_lesson_endpoint(request: dict):
     topic = request.get("topic")
@@ -184,7 +185,14 @@ async def generate_lesson_endpoint(request: dict):
     return await generate_lesson_tool(topic, grade_level, duration_minutes)
 
 # API endpoints - Generate Quiz
-from tools.quiz_tools import generate_quiz_tool
+from mcp_server.tools.quiz_tools import (
+    generate_quiz_tool,
+    start_interactive_quiz_tool,
+    submit_quiz_answer_tool,
+    get_quiz_hint_tool,
+    get_quiz_session_status_tool
+)
+
 @api_app.post("/api/generate-quiz")
 async def generate_quiz_endpoint(request: dict):
     concept = request.get("concept", "")
@@ -201,6 +209,38 @@ async def generate_quiz_endpoint(request: dict):
     if difficulty not in ["easy", "medium", "hard"]:
         difficulty = "medium"
     return await generate_quiz_tool(concept.strip(), difficulty)
+
+@api_app.post("/api/start-interactive-quiz")
+async def start_interactive_quiz_endpoint(request: dict):
+    quiz_data = request.get("quiz_data")
+    student_id = request.get("student_id", "anonymous")
+    if not quiz_data:
+        raise HTTPException(status_code=400, detail="quiz_data is required")
+    return await start_interactive_quiz_tool(quiz_data, student_id)
+
+@api_app.post("/api/submit-quiz-answer")
+async def submit_quiz_answer_endpoint(request: dict):
+    session_id = request.get("session_id")
+    question_id = request.get("question_id")
+    selected_answer = request.get("selected_answer")
+    if not all([session_id, question_id, selected_answer]):
+        raise HTTPException(status_code=400, detail="session_id, question_id, and selected_answer are required")
+    return await submit_quiz_answer_tool(session_id, question_id, selected_answer)
+
+@api_app.post("/api/get-quiz-hint")
+async def get_quiz_hint_endpoint(request: dict):
+    session_id = request.get("session_id")
+    question_id = request.get("question_id")
+    if not all([session_id, question_id]):
+        raise HTTPException(status_code=400, detail="session_id and question_id are required")
+    return await get_quiz_hint_tool(session_id, question_id)
+
+@api_app.post("/api/get-quiz-session-status")
+async def get_quiz_session_status_endpoint(request: dict):
+    session_id = request.get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id is required")
+    return await get_quiz_session_status_tool(session_id)
 
 # Entrypoint for running with MCP SSE transport
 if __name__ == "__main__":

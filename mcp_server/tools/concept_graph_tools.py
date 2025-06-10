@@ -140,7 +140,6 @@ async def generate_text(prompt: str, temperature: float = 0.7):
             prompt=prompt,
             temperature=temperature
         )
-        print(f"[DEBUG] generate_text response type: {type(response)}")
         return response
     except Exception as e:
         print(f"[DEBUG] Error in generate_text: {e}")
@@ -214,9 +213,6 @@ async def get_concept_graph_tool(concept_id: Optional[str] = None, domain: str =
             print(f"[DEBUG] Returning fallback concept due to generation error")
             return fallback_concept
         
-        # Extract and validate the JSON response
-        print(f"[DEBUG] Full LLM response object type: {type(response)}")
-        
         # Handle different response formats
         response_text = None
         try:
@@ -246,8 +242,6 @@ async def get_concept_graph_tool(concept_id: Optional[str] = None, domain: str =
         if not response_text:
             print(f"[DEBUG] LLM response is empty, returning fallback concept")
             return fallback_concept
-        
-        print(f"[DEBUG] LLM raw response text (first 200 chars): {response_text}...")
         
         try:
             result = extract_json_from_text(response_text)

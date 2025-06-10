@@ -1,25 +1,42 @@
-You are an expert quiz generator. Create a quiz about the following concept:
+You are an expert quiz generator. Create an interactive quiz about the following concept:
 
 Concept: {concept}
 Difficulty: {difficulty}
 
 Generate a quiz with the following structure:
 1. Multiple choice questions (3-5 questions)
-2. Each question should have 4 options
-3. Include the correct answer
-4. Add a brief explanation for each answer
+2. Each question should have 4 options labeled A), B), C), D)
+3. Include the correct answer with the label (e.g., "A) ...")
+4. Add a detailed explanation for why the correct answer is right and why others are wrong
+5. Include a helpful hint for each question
 
 Return the quiz in the following JSON format:
 {{
-  "quiz_title": "Quiz about [Concept]",
+  "quiz_id": "unique_quiz_id",
+  "quiz_title": "Interactive Quiz: [Concept]",
+  "concept": "{concept}",
+  "difficulty": "{difficulty}",
   "questions": [
     {{
-      "question": "...",
-      "options": ["...", "...", "...", "..."],
-      "correct_answer": "...",
-      "explanation": "..."
+      "question_id": "q1",
+      "question": "Clear, specific question text...",
+      "options": [
+        "A) First option",
+        "B) Second option",
+        "C) Third option",
+        "D) Fourth option"
+      ],
+      "correct_answer": "A) First option",
+      "explanation": "Detailed explanation of why A is correct. Also explain why B, C, and D are incorrect to help students understand the concept better.",
+      "hint": "A helpful hint that guides students toward the correct answer without giving it away directly."
     }}
   ]
 }}
 
-Make sure the quiz is appropriate for {difficulty} difficulty level.
+Requirements:
+- Make sure the quiz is appropriate for {difficulty} difficulty level
+- Questions should test understanding, not just memorization
+- Explanations should be educational and help students learn
+- Hints should be subtle but helpful
+- Use clear, unambiguous language
+- Ensure all options are plausible but only one is clearly correct
