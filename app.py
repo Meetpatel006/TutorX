@@ -900,12 +900,219 @@ async def generate_gamified_content_async(concept, game_type, target_age_group):
     except Exception as e:
         return {"error": str(e)}
 
-# Create Gradio interface
+# Enhanced UI/UX helper functions with Gradio Soft theme colors
+def get_info_card_html(title, description, icon="ℹ️"):
+    """Get HTML for a consistent info card component matching Gradio Soft theme"""
+    return f"""
+    <div style="background: var(--background-fill-secondary, #f7f7f7);
+                border-left: 4px solid var(--color-accent, #ff6b6b);
+                padding: 1rem;
+                margin: 0.5rem 0;
+                border-radius: var(--radius-lg, 8px);
+                border: 1px solid var(--border-color-primary, #e5e5e5);">
+        <h4 style="margin: 0 0 0.5rem 0; color: var(--body-text-color, #374151); font-weight: 600;">
+            {icon} {title}
+        </h4>
+        <p style="margin: 0; color: var(--body-text-color-subdued, #6b7280); font-size: 0.9rem; line-height: 1.5;">
+            {description}
+        </p>
+    </div>
+    """
+
+def get_status_display_html(message, status_type="info"):
+    """Get HTML for a status display with Gradio Soft theme compatible styling"""
+    # Using softer, more muted colors that match Gradio Soft theme
+    colors = {
+        "success": "var(--color-green-500, #10b981)",
+        "error": "var(--color-red-500, #ef4444)",
+        "warning": "var(--color-yellow-500, #f59e0b)",
+        "info": "var(--color-blue-500, #3b82f6)"
+    }
+    icons = {
+        "success": "✅",
+        "error": "❌",
+        "warning": "⚠️",
+        "info": "ℹ️"
+    }
+
+    color = colors.get(status_type, colors["info"])
+    icon = icons.get(status_type, icons["info"])
+
+    return f"""
+    <div style="background: var(--background-fill-secondary, #f7f7f7);
+                border: 1px solid {color};
+                color: var(--body-text-color, #374151);
+                padding: 0.75rem;
+                border-radius: var(--radius-md, 6px);
+                margin: 0.5rem 0;
+                border-left: 4px solid {color};">
+        <span style="color: {color}; font-weight: 600;">{icon}</span> {message}
+    </div>
+    """
+
+def create_feature_section(title, description, icon="🔧"):
+    """Create a consistent feature section header matching Gradio Soft theme"""
+    gr.Markdown(f"""
+    <div style="background: var(--color-accent-soft, #ff6b6b20);
+                border: 1px solid var(--color-accent, #ff6b6b);
+                color: var(--body-text-color, #374151);
+                padding: 1.5rem;
+                margin: 1rem 0 0.5rem 0;
+                border-radius: var(--radius-lg, 8px);
+                box-shadow: var(--shadow-drop, 0 1px 3px rgba(0,0,0,0.1));">
+        <h2 style="margin: 0; font-size: 1.5rem; color: var(--body-text-color, #374151); font-weight: 700;">
+            {icon} {title}
+        </h2>
+        <p style="margin: 0.5rem 0 0 0; color: var(--body-text-color-subdued, #6b7280); font-size: 0.95rem; line-height: 1.5;">
+            {description}
+        </p>
+    </div>
+    """)
+
+# Create Gradio interface with enhanced UI/UX
 def create_gradio_interface():
     # Set a default student ID for the demo
     student_id = "student_12345"
 
-    with gr.Blocks(title="TutorX Educational AI", theme=gr.themes.Soft()) as demo:
+    # Custom CSS for enhanced styling - Gradio Soft theme compatible
+    custom_css = """
+    .gradio-container {
+        max-width: 1400px !important;
+        margin: 0 auto !important;
+    }
+
+    /* Tab navigation with Gradio Soft theme colors */
+    .tab-nav {
+        background: var(--color-accent-soft, #ff6b6b20) !important;
+        border: 1px solid var(--color-accent, #ff6b6b) !important;
+        border-radius: var(--radius-lg, 8px) var(--radius-lg, 8px) 0 0 !important;
+    }
+
+    .tab-nav button {
+        color: var(--body-text-color, #374151) !important;
+        font-weight: 500 !important;
+        padding: 12px 20px !important;
+        margin: 0 2px !important;
+        border-radius: var(--radius-md, 6px) var(--radius-md, 6px) 0 0 !important;
+        transition: all 0.3s ease !important;
+        background: transparent !important;
+    }
+
+    .tab-nav button:hover {
+        background: var(--color-accent-soft, #ff6b6b20) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    .tab-nav button.selected {
+        background: var(--background-fill-primary, #ffffff) !important;
+        color: var(--body-text-color, #374151) !important;
+        box-shadow: var(--shadow-drop, 0 1px 3px rgba(0,0,0,0.1)) !important;
+        border-bottom: 2px solid var(--color-accent, #ff6b6b) !important;
+    }
+
+    /* Accordion styling */
+    .accordion {
+        border: 1px solid var(--border-color-primary, #e5e5e5) !important;
+        border-radius: var(--radius-lg, 8px) !important;
+        margin: 0.5rem 0 !important;
+        overflow: hidden !important;
+        background: var(--background-fill-primary, #ffffff) !important;
+    }
+
+    .accordion summary {
+        background: var(--background-fill-secondary, #f7f7f7) !important;
+        padding: 1rem !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        border-bottom: 1px solid var(--border-color-primary, #e5e5e5) !important;
+        color: var(--body-text-color, #374151) !important;
+    }
+
+    .accordion[open] summary {
+        border-bottom: 1px solid var(--border-color-primary, #e5e5e5) !important;
+    }
+
+    /* Button styling with Gradio theme */
+    .button-primary {
+        background: var(--color-accent, #ff6b6b) !important;
+        border: none !important;
+        color: white !important;
+        font-weight: 500 !important;
+        padding: 10px 20px !important;
+        border-radius: var(--radius-md, 6px) !important;
+        transition: all 0.3s ease !important;
+        box-shadow: var(--shadow-drop, 0 1px 3px rgba(0,0,0,0.1)) !important;
+    }
+
+    .button-primary:hover {
+        background: var(--color-accent-hover, #ff5252) !important;
+        transform: translateY(-1px) !important;
+        box-shadow: var(--shadow-drop-lg, 0 4px 6px rgba(0,0,0,0.1)) !important;
+    }
+
+    /* Loading spinner */
+    .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid var(--border-color-primary, #e5e5e5);
+        border-top: 3px solid var(--color-accent, #ff6b6b);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Status cards */
+    .status-card {
+        background: var(--background-fill-primary, #ffffff);
+        border: 1px solid var(--border-color-primary, #e5e5e5);
+        border-radius: var(--radius-lg, 8px);
+        padding: 1rem;
+        margin: 0.5rem 0;
+        box-shadow: var(--shadow-drop, 0 1px 3px rgba(0,0,0,0.1));
+    }
+
+    /* Feature highlights */
+    .feature-highlight {
+        background: var(--color-accent, #ff6b6b);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: var(--radius-full, 20px);
+        font-size: 0.85rem;
+        font-weight: 500;
+        display: inline-block;
+        margin: 0.25rem;
+        box-shadow: var(--shadow-drop, 0 1px 3px rgba(0,0,0,0.1));
+    }
+
+    /* Custom scrollbar for better theme integration */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: var(--background-fill-secondary, #f7f7f7);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: var(--color-accent-soft, #ff6b6b40);
+        border-radius: var(--radius-md, 6px);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--color-accent, #ff6b6b);
+    }
+    """
+
+    with gr.Blocks(
+        title="TutorX Educational AI",
+        theme=gr.themes.Soft(),
+        css=custom_css
+    ) as demo:
         # Start the ping task when the app loads
         demo.load(
             fn=start_ping_task,
@@ -914,176 +1121,374 @@ def create_gradio_interface():
             queue=False
         )
 
-        # Header Section
+        # Enhanced Header Section with Welcome and Quick Start - Gradio Soft theme
         with gr.Row():
             with gr.Column():
                 gr.Markdown("""
-                # 🧠 TutorX Educational AI Platform
-                *An adaptive, multi-modal, and collaborative AI tutoring platform with real-time personalization.*
-
-                **✨ New: Adaptive Learning System** - Experience personalized learning that adapts to your performance in real-time!
+                <div style="background: var(--background-fill-primary, #ffffff);
+                           border: 2px solid var(--color-accent, #ff6b6b);
+                           color: var(--body-text-color, #374151);
+                           padding: 2rem;
+                           border-radius: var(--radius-xl, 12px);
+                           text-align: center;
+                           margin-bottom: 1rem;
+                           box-shadow: var(--shadow-drop-lg, 0 4px 6px rgba(0,0,0,0.1));">
+                    <h1 style="margin: 0 0 1rem 0; font-size: 2.5rem; font-weight: 700; color: var(--body-text-color, #374151);">
+                        🧠 TutorX Educational AI Platform
+                    </h1>
+                    <p style="margin: 0 0 1rem 0; font-size: 1.2rem; color: var(--body-text-color-subdued, #6b7280); line-height: 1.5;">
+                        An adaptive, multi-modal, and collaborative AI tutoring platform with real-time personalization
+                    </p>
+                    <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem;">
+                        <span class="feature-highlight">🎯 Adaptive Learning</span>
+                        <span class="feature-highlight">🤖 AI Tutoring</span>
+                        <span class="feature-highlight">📊 Real-time Analytics</span>
+                        <span class="feature-highlight">🎮 Interactive Content</span>
+                    </div>
+                </div>
                 """)
 
-        # Add some spacing
-        gr.Markdown("---")
-
-# Main Tabs with scrollable container
+        # Quick Start Guide - Gradio Soft theme compatible
+        with gr.Accordion("🚀 Quick Start Guide - New Users Start Here!", open=True):
+            gr.Markdown("""
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin: 1rem 0;">
+                <div style="background: var(--background-fill-secondary, #f7f7f7);
+                           padding: 1.5rem;
+                           border-radius: var(--radius-lg, 8px);
+                           border-left: 4px solid var(--color-green-500, #10b981);
+                           border: 1px solid var(--border-color-primary, #e5e5e5);">
+                    <h4 style="color: var(--color-green-500, #10b981); margin: 0 0 0.5rem 0; font-weight: 600;">🎯 Step 1: Explore Concepts</h4>
+                    <p style="margin: 0; color: var(--body-text-color-subdued, #6b7280); line-height: 1.5;">Start with the <strong>Core Features</strong> tab to visualize concept relationships and generate your first quiz.</p>
+                </div>
+                <div style="background: var(--background-fill-secondary, #f7f7f7);
+                           padding: 1.5rem;
+                           border-radius: var(--radius-lg, 8px);
+                           border-left: 4px solid var(--color-blue-500, #3b82f6);
+                           border: 1px solid var(--border-color-primary, #e5e5e5);">
+                    <h4 style="color: var(--color-blue-500, #3b82f6); margin: 0 0 0.5rem 0; font-weight: 600;">🤖 Step 2: Try AI Tutoring</h4>
+                    <p style="margin: 0; color: var(--body-text-color-subdued, #6b7280); line-height: 1.5;">Visit the <strong>AI Tutoring</strong> tab for personalized, step-by-step learning assistance.</p>
+                </div>
+                <div style="background: var(--background-fill-secondary, #f7f7f7);
+                           padding: 1.5rem;
+                           border-radius: var(--radius-lg, 8px);
+                           border-left: 4px solid var(--color-purple-500, #8b5cf6);
+                           border: 1px solid var(--border-color-primary, #e5e5e5);">
+                    <h4 style="color: var(--color-purple-500, #8b5cf6); margin: 0 0 0.5rem 0; font-weight: 600;">🧠 Step 3: Adaptive Learning</h4>
+                    <p style="margin: 0; color: var(--body-text-color-subdued, #6b7280); line-height: 1.5;">Experience the <strong>Adaptive Learning</strong> system that adjusts to your performance in real-time.</p>
+                </div>
+            </div>
+            """)
+# Main Tabs with enhanced navigation
         with gr.Tabs():
-            # Tab 1: Core Features
-            with gr.Tab("1 Core Features", elem_id="core_features_tab"):
-                with gr.Row():
-                    with gr.Column():
-                        gr.Markdown("## 🔍 Concept Graph Visualization")
-                        gr.Markdown("Explore relationships between educational concepts through an interactive graph visualization.")
+            # Tab 1: Core Features - Enhanced with better organization
+            with gr.Tab("🎯 Core Features", elem_id="core_features_tab"):
+                # Feature section header
+                create_feature_section(
+                    "Concept Graph Visualization",
+                    "Explore relationships between educational concepts through interactive graph visualization",
+                    "🔍"
+                )
 
+                # Enhanced concept graph interface with better UX
                 with gr.Row():
-                    # Left panel for controls and details
+                    # Left panel - Controls and Information
                     with gr.Column(scale=3):
-                        with gr.Row():
+                        # Input section with enhanced styling
+                        with gr.Group():
+                            gr.Markdown("### 🎯 Concept Explorer")
                             concept_input = gr.Textbox(
-                                label="Enter Concept",
+                                label="Enter Concept to Explore",
                                 placeholder="e.g., machine_learning, calculus, quantum_physics",
                                 value="machine_learning",
-                                scale=4
+                                info="Enter any educational concept to visualize its relationships"
                             )
-                        load_btn = gr.Button("Load Graph", variant="primary", scale=1)
+                            with gr.Row():
+                                load_btn = gr.Button("🔍 Load Graph", variant="primary", scale=2)
+                                clear_btn = gr.Button("🗑️ Clear", variant="secondary", scale=1)
 
-                        # Concept details
-                        with gr.Accordion("Concept Details", open=True):
+                        # Quick examples for easy access
+                        with gr.Group():
+                            gr.Markdown("### 💡 Quick Examples")
+                            with gr.Row():
+                                example_btns = []
+                                examples = ["machine_learning", "calculus", "quantum_physics", "biology"]
+                                for example in examples:
+                                    btn = gr.Button(example.replace("_", " ").title(), size="sm")
+                                    example_btns.append(btn)
+
+                        # Concept details with enhanced presentation
+                        with gr.Accordion("📋 Concept Details", open=True):
                             concept_details = gr.JSON(
                                 label=None,
                                 show_label=False
                             )
 
-                        # Related concepts and prerequisites
-                        with gr.Accordion("Related Concepts & Prerequisites", open=True):
+                        # Related concepts with better formatting
+                        with gr.Accordion("🔗 Related Concepts & Prerequisites", open=True):
                             related_concepts = gr.Dataframe(
                                 headers=["Type", "Name", "Description"],
                                 datatype=["str", "str", "str"],
                                 interactive=False,
-                                wrap=True,
+                                wrap=True
+                                # height=200
                             )
 
-                    # Graph visualization with a card-like container
+                    # Right panel - Graph visualization
                     with gr.Column(scale=7):
                         with gr.Group():
+                            gr.Markdown("### 🌐 Interactive Concept Graph")
                             graph_plot = gr.Plot(
-                                label="Concept Graph",
-                                show_label=True,
+                                label=None,
+                                show_label=False,
                                 container=True
                             )
 
-                # Event handlers
+                            # Graph legend and instructions
+                            gr.Markdown("""
+                            <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; margin-top: 0.5rem;">
+                                <strong>📖 Graph Legend:</strong><br>
+                                🔵 <span style="color: #4e79a7;">Main Concept</span> |
+                                🔴 <span style="color: #e15759;">Related Concepts</span> |
+                                🟢 <span style="color: #59a14f;">Prerequisites</span><br>
+                                <em>Tip: The graph shows how concepts connect and build upon each other</em>
+                            </div>
+                            """)
+
+                # Enhanced event handlers with better UX
+                def clear_concept_input():
+                    return "", None, {"message": "Enter a concept to explore"}, []
+
+                def load_example_concept(example):
+                    return example
+
+                # Main load button
                 load_btn.click(
                     fn=sync_load_concept_graph,
                     inputs=[concept_input],
                     outputs=[graph_plot, concept_details, related_concepts]
                 )
 
-                # Load initial graph
+                # Clear button
+                clear_btn.click(
+                    fn=clear_concept_input,
+                    inputs=[],
+                    outputs=[concept_input, graph_plot, concept_details, related_concepts]
+                )
+
+                # Example buttons
+                for i, (btn, example) in enumerate(zip(example_btns, examples)):
+                    btn.click(
+                        fn=lambda ex=example: load_example_concept(ex),
+                        inputs=[],
+                        outputs=[concept_input]
+                    ).then(
+                        fn=sync_load_concept_graph,
+                        inputs=[concept_input],
+                        outputs=[graph_plot, concept_details, related_concepts]
+                    )
+
+                # Load initial graph on startup
                 demo.load(
                     fn=lambda: sync_load_concept_graph("machine_learning"),
                     outputs=[graph_plot, concept_details, related_concepts]
                 )
 
-                # Help text and examples
-                with gr.Row():
-                    gr.Markdown("""
-                    **Examples to try:**
-                    - `machine_learning`
-                    - `neural_networks`
-                    - `calculus`
-                    - `quantum_physics`
-                    """)
-
-                # Add some spacing between sections
-                gr.Markdown("---")
-
-                # Assessment Generation Section
-                with gr.Row():
-                    with gr.Column():
-                        gr.Markdown("## 📝 Assessment Generation")
-                        gr.Markdown("Create customized quizzes and assessments based on educational concepts.")
-                gr.Markdown("---")
+                # Enhanced Assessment Generation Section
+                create_feature_section(
+                    "Assessment Generation",
+                    "Create customized quizzes and assessments with immediate feedback and detailed explanations",
+                    "📝"
+                )
 
                 with gr.Row():
-                    with gr.Column():
-                        quiz_concept_input = gr.Textbox(
-                            label="Enter Concept",
-                            placeholder="e.g., Linear Equations, Photosynthesis, World War II",
-                            lines=2
-                        )
-                        with gr.Row():
-                            diff_input = gr.Slider(
-                                minimum=1,
-                                maximum=5,
-                                value=2,
-                                step=1,
-                                label="Difficulty Level",
-                                interactive=True
-                            )
-                            gen_quiz_btn = gr.Button("Generate Quiz", variant="primary")
-
-                    with gr.Column():
+                    # Left panel - Quiz configuration
+                    with gr.Column(scale=2):
                         with gr.Group():
-                            quiz_output = gr.JSON(label="Generated Quiz", show_label=True, container=True)
+                            gr.Markdown("### ⚙️ Quiz Configuration")
+                            quiz_concept_input = gr.Textbox(
+                                label="📚 Concept or Topic",
+                                placeholder="e.g., Linear Equations, Photosynthesis, World War II",
+                                lines=2,
+                                info="Enter the subject matter for your quiz"
+                            )
 
-                # Connect quiz generation button
+                            with gr.Row():
+                                diff_input = gr.Slider(
+                                    minimum=1,
+                                    maximum=5,
+                                    value=3,
+                                    step=1,
+                                    label="🎯 Difficulty Level",
+                                    info="1=Very Easy, 3=Medium, 5=Very Hard"
+                                )
+
+                            with gr.Row():
+                                gen_quiz_btn = gr.Button("🎲 Generate Quiz", variant="primary", scale=2)
+                                preview_btn = gr.Button("👁️ Preview", variant="secondary", scale=1)
+
+                    # Right panel - Generated quiz display
+                    with gr.Column(scale=3):
+                        with gr.Group():
+                            gr.Markdown("### 📋 Generated Quiz")
+                            quiz_output = gr.JSON(
+                                label=None,
+                                show_label=False,
+                                container=True
+                            )
+
+                            # Quiz statistics - Gradio Soft theme compatible
+                            quiz_stats = gr.Markdown("""
+                            <div style="background: var(--background-fill-secondary, #f7f7f7);
+                                       padding: 1rem;
+                                       border-radius: var(--radius-md, 6px);
+                                       margin-top: 0.5rem;
+                                       border: 1px solid var(--border-color-primary, #e5e5e5);">
+                                <strong style="color: var(--body-text-color, #374151);">📊 Quiz will appear here after generation</strong><br>
+                                <em style="color: var(--body-text-color-subdued, #6b7280);">Click "Generate Quiz" to create your assessment</em>
+                            </div>
+                            """)
+
+                # Enhanced quiz generation with better UX
+                def generate_quiz_with_feedback(concept, difficulty):
+                    """Generate quiz with user-friendly feedback"""
+                    if not concept or not concept.strip():
+                        return {
+                            "error": "Please enter a concept or topic for the quiz",
+                            "status": "error"
+                        }
+
+                    # Show loading state
+                    result = sync_generate_quiz(concept, difficulty)
+
+                    # Add user-friendly formatting
+                    if isinstance(result, dict) and "error" not in result:
+                        # Add metadata for better display
+                        result["_ui_metadata"] = {
+                            "concept": concept,
+                            "difficulty": difficulty,
+                            "generated_at": "Just now",
+                            "status": "success"
+                        }
+
+                    return result
+
+                # Connect enhanced quiz generation
                 gen_quiz_btn.click(
-                    fn=sync_generate_quiz,
+                    fn=generate_quiz_with_feedback,
                     inputs=[quiz_concept_input, diff_input],
                     outputs=[quiz_output],
                     api_name="generate_quiz"
                 )
 
-                # Interactive Quiz Section
-                gr.Markdown("---")
-                gr.Markdown("## 🎮 Interactive Quiz Taking")
-                gr.Markdown("Take quizzes interactively with immediate feedback and explanations.")
+                # Enhanced Interactive Quiz Section
+                create_feature_section(
+                    "Interactive Quiz Taking",
+                    "Take quizzes with immediate feedback, hints, and detailed explanations for enhanced learning",
+                    "🎮"
+                )
 
-                with gr.Accordion("🚀 Start Interactive Quiz", open=True):
+                # Quiz workflow with step-by-step guidance
+                with gr.Accordion("🚀 Step 1: Start Interactive Quiz Session", open=True):
+                    with gr.Row():
+                        with gr.Column(scale=2):
+                            with gr.Group():
+                                gr.Markdown("### 👤 Student Information")
+                                quiz_student_id = gr.Textbox(
+                                    label="Student ID",
+                                    value=student_id,
+                                    info="Your unique identifier for tracking progress"
+                                )
+                                start_quiz_btn = gr.Button("🎯 Start Interactive Quiz", variant="primary")
+
+                                gr.Markdown(get_info_card_html(
+                                    "📋 Prerequisites",
+                                    "Make sure you have generated a quiz above before starting an interactive session"
+                                ))
+
+                        with gr.Column(scale=3):
+                            with gr.Group():
+                                gr.Markdown("### 📊 Session Status")
+                                quiz_session_output = gr.JSON(
+                                    label=None,
+                                    show_label=False
+                                )
+
+                # Enhanced Quiz Taking Interface
+                with gr.Accordion("📝 Step 2: Answer Questions", open=True):
+                    with gr.Row():
+                        # Left panel - Question and controls
+                        with gr.Column(scale=2):
+                            with gr.Group():
+                                gr.Markdown("### 🎯 Current Question")
+                                session_id_input = gr.Textbox(
+                                    label="Session ID",
+                                    placeholder="Enter session ID from above",
+                                    info="Copy the session ID from the status above"
+                                )
+                                question_id_input = gr.Textbox(
+                                    label="Question ID",
+                                    placeholder="e.g., q1",
+                                    info="Current question identifier"
+                                )
+
+                                # Enhanced answer options
+                                answer_choice = gr.Radio(
+                                    choices=["A) Option A", "B) Option B", "C) Option C", "D) Option D"],
+                                    label="📋 Select Your Answer",
+                                    value=None,
+                                    info="Choose the best answer from the options below"
+                                )
+
+                                # Action buttons with better organization
+                                with gr.Row():
+                                    submit_answer_btn = gr.Button("✅ Submit Answer", variant="primary", scale=2)
+                                    get_hint_btn = gr.Button("💡 Get Hint", variant="secondary", scale=1)
+
+                                with gr.Row():
+                                    check_status_btn = gr.Button("📊 Check Progress", variant="secondary")
+
+                        # Right panel - Feedback and results
+                        with gr.Column(scale=3):
+                            with gr.Group():
+                                gr.Markdown("### 📋 Question & Feedback")
+                                current_question_display = gr.Markdown("*Start a quiz session to see questions here*")
+
+                            with gr.Accordion("💬 Answer Feedback", open=True):
+                                answer_feedback = gr.JSON(
+                                    label=None,
+                                    show_label=False
+                                )
+
+                            with gr.Accordion("💡 Hints & Help", open=False):
+                                hint_output = gr.JSON(
+                                    label=None,
+                                    show_label=False
+                                )
+
+                # Enhanced Quiz Progress and Results
+                with gr.Accordion("📊 Step 3: Track Progress & Results", open=True):
                     with gr.Row():
                         with gr.Column():
-                            quiz_student_id = gr.Textbox(label="Student ID", value=student_id)
-                            start_quiz_btn = gr.Button("Start Interactive Quiz", variant="primary")
-                            gr.Markdown("*First generate a quiz above, then click 'Start Interactive Quiz'*")
+                            with gr.Group():
+                                gr.Markdown("### 📈 Progress Overview")
+                                quiz_stats_display = gr.JSON(
+                                    label=None,
+                                    show_label=False
+                                )
 
                         with gr.Column():
-                            quiz_session_output = gr.JSON(label="Quiz Session Status")
-
-                # Quiz Taking Interface
-                with gr.Accordion("📝 Answer Questions", open=True):
-                    with gr.Row():
-                        with gr.Column():
-                            session_id_input = gr.Textbox(label="Session ID", placeholder="Enter session ID from above")
-                            question_id_input = gr.Textbox(label="Question ID", placeholder="e.g., q1")
-
-                            # Answer options as radio buttons
-                            answer_choice = gr.Radio(
-                                choices=["A) Option A", "B) Option B", "C) Option C", "D) Option D"],
-                                label="Select Your Answer",
-                                value=None
-                            )
-
-                            with gr.Row():
-                                submit_answer_btn = gr.Button("Submit Answer", variant="primary")
-                                get_hint_btn = gr.Button("Get Hint", variant="secondary")
-                                check_status_btn = gr.Button("Check Status", variant="secondary")
-
-                        with gr.Column():
-                            answer_feedback = gr.JSON(label="Answer Feedback")
-                            hint_output = gr.JSON(label="Hint")
-
-                # Quiz Progress and Results
-                with gr.Accordion("📊 Quiz Progress & Results", open=True):
-                    with gr.Row():
-                        with gr.Column():
-                            gr.Markdown("### Current Question Display")
-                            current_question_display = gr.Markdown("*Start a quiz to see the current question*")
-
-                        with gr.Column():
-                            gr.Markdown("### Quiz Statistics")
-                            quiz_stats_display = gr.JSON(label="Quiz Statistics")
+                            with gr.Group():
+                                gr.Markdown("### 🏆 Performance Summary")
+                                performance_summary = gr.Markdown("""
+                                <div style="background: var(--background-fill-secondary, #f7f7f7);
+                                           padding: 1rem;
+                                           border-radius: var(--radius-md, 6px);
+                                           text-align: center;
+                                           border: 1px solid var(--border-color-primary, #e5e5e5);">
+                                    <strong style="color: var(--body-text-color, #374151);">📊 Complete a quiz to see your performance metrics</strong><br>
+                                    <em style="color: var(--body-text-color-subdued, #6b7280);">Accuracy • Speed • Learning Progress</em>
+                                </div>
+                                """)
 
                 # Connect interactive quiz buttons with enhanced functionality
                 def start_quiz_with_display(student_id, quiz_data):
@@ -1181,9 +1586,13 @@ def create_gradio_interface():
 
                 gr.Markdown("---")
             
-            # Tab 2: Advanced Features
-            with gr.Tab("2 Advanced Features", elem_id="advanced_features_tab"):
-                gr.Markdown("## Lesson Generation")
+            # Tab 2: Advanced Features - Enhanced
+            with gr.Tab("📚 Advanced Features", elem_id="advanced_features_tab"):
+                create_feature_section(
+                    "Lesson Generation",
+                    "Create comprehensive lesson plans with structured content and learning objectives",
+                    "📖"
+                )
 
                 with gr.Row():
                     with gr.Column():
@@ -1202,8 +1611,11 @@ def create_gradio_interface():
                     outputs=[lesson_output]
                 )
 
-                gr.Markdown("## Learning Path Generation")
-                gr.Markdown("*Enhanced with adaptive learning capabilities*")
+                create_feature_section(
+                    "Learning Path Generation",
+                    "Enhanced with adaptive learning capabilities for personalized educational journeys",
+                    "🛤️"
+                )
 
                 with gr.Row():
                     with gr.Column():
@@ -1231,9 +1643,13 @@ def create_gradio_interface():
                     outputs=[lp_output]
                 )
         
-            # Tab 3: Interactive Tools
-            with gr.Tab("3 Interactive Tools", elem_id="interactive_tools_tab"):
-                gr.Markdown("## Text Interaction")
+            # Tab 3: Interactive Tools - Enhanced
+            with gr.Tab("🛠️ Interactive Tools", elem_id="interactive_tools_tab"):
+                create_feature_section(
+                    "Text Interaction & Document Processing",
+                    "Ask questions, get explanations, and process documents with AI-powered analysis",
+                    "💬"
+                )
 
                 with gr.Row():
                     with gr.Column():
@@ -1251,7 +1667,11 @@ def create_gradio_interface():
                 )
 
                 # Document OCR (PDF, images, etc.)
-                gr.Markdown("## Document OCR & LLM Analysis")
+                create_feature_section(
+                    "Document OCR & LLM Analysis",
+                    "Upload and analyze documents with advanced OCR and AI-powered content extraction",
+                    "📄"
+                )
                 with gr.Row():
                     with gr.Column():
                         doc_input = gr.File(label="Upload PDF or Document", file_types=[".pdf", ".jpg", ".jpeg", ".png"])
@@ -1266,10 +1686,13 @@ def create_gradio_interface():
                     outputs=[doc_output]
                 )
 
-            # Tab 4: AI Tutoring
-            with gr.Tab("4 🤖 AI Tutoring", elem_id="ai_tutoring_tab"):
-                gr.Markdown("## Contextualized AI Tutoring")
-                gr.Markdown("Experience personalized AI tutoring with step-by-step guidance and alternative explanations.")
+            # Tab 4: AI Tutoring - Enhanced
+            with gr.Tab("🤖 AI Tutoring", elem_id="ai_tutoring_tab"):
+                create_feature_section(
+                    "Contextualized AI Tutoring",
+                    "Experience personalized AI tutoring with step-by-step guidance and alternative explanations",
+                    "🤖"
+                )
 
                 with gr.Accordion("ℹ️ How AI Tutoring Works", open=False):
                     gr.Markdown("""
@@ -1397,10 +1820,13 @@ def create_gradio_interface():
                     outputs=[session_end_output]
                 )
 
-            # Tab 5: Content Generation
-            with gr.Tab("5 🎨 Content Generation", elem_id="content_generation_tab"):
-                gr.Markdown("## Advanced Content Generation")
-                gr.Markdown("Generate interactive exercises, scenarios, and gamified content automatically.")
+            # Tab 5: Content Generation - Enhanced
+            with gr.Tab("🎨 Content Generation", elem_id="content_generation_tab"):
+                create_feature_section(
+                    "Advanced Content Generation",
+                    "Generate interactive exercises, scenarios, and gamified content automatically with AI assistance",
+                    "🎨"
+                )
 
                 # Interactive Exercise Generation
                 with gr.Accordion("🎯 Interactive Exercise Generation", open=True):
@@ -1482,10 +1908,13 @@ def create_gradio_interface():
                     outputs=[game_output]
                 )
 
-            # Tab 6: Adaptive Learning
-            with gr.Tab("6 🧠 Adaptive Learning", elem_id="adaptive_learning_tab"):
-                gr.Markdown("## Adaptive Learning System")
-                gr.Markdown("Experience personalized learning with real-time adaptation based on your performance.")
+            # Tab 6: Adaptive Learning - Enhanced
+            with gr.Tab("🧠 Adaptive Learning", elem_id="adaptive_learning_tab"):
+                create_feature_section(
+                    "Adaptive Learning System",
+                    "Experience personalized learning with real-time adaptation based on your performance and learning patterns",
+                    "🧠"
+                )
 
                 with gr.Accordion("ℹ️ How It Works", open=False):
                     gr.Markdown("""
@@ -1652,9 +2081,13 @@ def create_gradio_interface():
                     - **Engagement Metrics**: Measures learning engagement
                     """)
 
-            # Tab 7: Data Analytics
-            with gr.Tab("7 Data Analytics", elem_id="data_analytics_tab"):
-                gr.Markdown("## Plagiarism Detection")
+            # Tab 7: Data Analytics - Enhanced
+            with gr.Tab("📊 Analytics", elem_id="data_analytics_tab"):
+                create_feature_section(
+                    "Plagiarism Detection & Analytics",
+                    "Advanced plagiarism detection with detailed similarity analysis and originality reporting",
+                    "📊"
+                )
 
                 with gr.Row():
                     with gr.Column():
@@ -1682,26 +2115,47 @@ def create_gradio_interface():
                     outputs=[plagiarism_output]
                 )
             
-            # Footer
-            gr.Markdown("---")
-            with gr.Row():
-                with gr.Column():
-                    gr.Markdown("### About TutorX")
-                    gr.Markdown("""
-                    TutorX is an AI-powered educational platform designed to enhance learning through interactive tools and personalized content.
-                    """)
-                with gr.Column():
-                    gr.Markdown("### Quick Links")
-                    gr.Markdown("""
-                    - [Documentation](https://github.com/Meetpatel006/TutorX/blob/main/README.md)
-                    - [GitHub Repository](https://github.com/Meetpatel006/TutorX)
-                    - [Report an Issue](https://github.com/Meetpatel006/TutorX/issues)
-                    """)
-            
-                    # Add some spacing at the bottom
-                    gr.Markdown("\n\n")
-                gr.Markdown("---")
-                gr.Markdown("© 2025 TutorX - All rights reserved")
+            # Enhanced Footer Section - Gradio Soft theme compatible
+            gr.Markdown("""
+            <div style="background: var(--background-fill-secondary, #f7f7f7);
+                       padding: 2rem;
+                       margin-top: 2rem;
+                       border-radius: var(--radius-xl, 12px);
+                       border-top: 3px solid var(--color-accent, #ff6b6b);
+                       border: 1px solid var(--border-color-primary, #e5e5e5);">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem;">
+                    <div>
+                        <h3 style="color: var(--body-text-color, #374151); margin: 0 0 1rem 0; font-weight: 600;">🧠 About TutorX</h3>
+                        <p style="color: var(--body-text-color-subdued, #6b7280); margin: 0; line-height: 1.6;">
+                            TutorX is an AI-powered educational platform that provides adaptive learning,
+                            interactive assessments, and personalized tutoring to enhance the learning experience.
+                        </p>
+                    </div>
+                    <div>
+                        <h3 style="color: var(--body-text-color, #374151); margin: 0 0 1rem 0; font-weight: 600;">🔗 Quick Links</h3>
+                        <div style="color: var(--body-text-color-subdued, #6b7280);">
+                            <p style="margin: 0.5rem 0;">📖 <a href="https://github.com/Meetpatel006/TutorX/blob/main/README.md" target="_blank" style="color: var(--color-accent, #ff6b6b); text-decoration: none;">Documentation</a></p>
+                            <p style="margin: 0.5rem 0;">💻 <a href="https://github.com/Meetpatel006/TutorX" target="_blank" style="color: var(--color-accent, #ff6b6b); text-decoration: none;">GitHub Repository</a></p>
+                            <p style="margin: 0.5rem 0;">🐛 <a href="https://github.com/Meetpatel006/TutorX/issues" target="_blank" style="color: var(--color-accent, #ff6b6b); text-decoration: none;">Report an Issue</a></p>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 style="color: var(--body-text-color, #374151); margin: 0 0 1rem 0; font-weight: 600;">✨ Key Features</h3>
+                        <div style="color: var(--body-text-color-subdued, #6b7280); font-size: 0.9rem;">
+                            <p style="margin: 0.25rem 0;">🎯 Adaptive Learning Paths</p>
+                            <p style="margin: 0.25rem 0;">🤖 AI-Powered Tutoring</p>
+                            <p style="margin: 0.25rem 0;">📊 Real-time Analytics</p>
+                            <p style="margin: 0.25rem 0;">🎮 Interactive Assessments</p>
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-color-primary, #e5e5e5);">
+                    <p style="color: var(--body-text-color-subdued, #6b7280); margin: 0; font-size: 0.9rem;">
+                        © 2025 TutorX Educational AI Platform - Empowering Learning Through Technology
+                    </p>
+                </div>
+            </div>
+            """)
         
         return demo
 
