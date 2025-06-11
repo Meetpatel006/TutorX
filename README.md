@@ -18,6 +18,20 @@ A comprehensive Model Context Protocol (MCP) server for educational AI tutoring 
 
 TutorX-MCP is an adaptive, multi-modal, and collaborative AI tutoring platform that leverages the Model Context Protocol (MCP) for tool integration and Gradio for user-friendly interfaces. It provides a range of educational features accessible via both MCP clients and a dedicated web interface.
 
+## Additional Documentation
+
+Beyond this README, the TutorX project is accompanied by a suite of detailed documentation files, each offering deeper insights into specific aspects of the platform. 
+
+- **[CODE_OF_CONDUCT.md](docs/CODE_OF_CONDUCT.md)**: Outlines the standards for behavior within the TutorX community.
+- **[UI_UX_IMPROVEMENTS_SUMMARY.md](docs/UI_UX_IMPROVEMENTS_SUMMARY.md)**: Summarizes improvements made to the user interface and user experience.
+- **[UI_UX_ENHANCEMENTS.md](docs/UI_UX_ENHANCEMENTS.md)**: Details specific enhancements implemented for the UI/UX.
+- **[NEW_ADAPTIVE_LEARNING_README.md](docs/NEW_ADAPTIVE_LEARNING_README.md)**: Introduces new features and updates related to the adaptive learning system.
+- **[GRADIO_THEME_COLOR_FIXES.md](docs/GRADIO_THEME_COLOR_FIXES.md)**: Documents fixes and adjustments made to the Gradio theme and colors.
+- **[FIXES_SUMMARY.md](docs/FIXES_SUMMARY.md)**: A summary of various bug fixes and resolved issues.
+- **[ENHANCED_ADAPTIVE_LEARNING_GEMINI.md](docs/ENHANCED_ADAPTIVE_LEARNING_GEMINI.md)**: Explores the enhancements to the adaptive learning system through Gemini integration.
+- **[AI_INTEGRATION_FEATURES.md](docs/AI_INTEGRATION_FEATURES.md)**: Details the features and capabilities related to AI integration within the platform.
+
+
 ## ✨ New: Enhanced AI Integration & Capabilities
 
 **🤖 Contextualized AI Tutoring:**
@@ -32,9 +46,8 @@ TutorX-MCP is an adaptive, multi-modal, and collaborative AI tutoring platform t
 - **Gamified content** with game mechanics and progressive difficulty
 - **Multi-modal content** supporting different learning styles
 
-![TutorX-MCP](https://via.placeholder.com/800x400?text=TutorX-MCP+Educational+Platform)
+[TutorX-MCP]
 
-For a comprehensive analysis of the project from architectural, development, and product perspectives, please see our [Project Analysis Document](PROJECT_ANALYSIS.md).
 
 ## Version History
 
@@ -291,7 +304,7 @@ This separation of concerns allows:
 - Clear boundaries between presentation, API gateway, tool implementations, and resources
 - Easy extension through the addition of new tool modules
 
-For more detailed architecture information, see the [Architecture Documentation](ARCHITECTURE.md) and [Project Analysis](PROJECT_ANALYSIS.md).
+For more detailed architecture information, see the documentation in the docs/ folder.
 
 ## Testing
 
@@ -307,12 +320,10 @@ python run_tests.py
 
 ## Documentation
 
-- [Project Analysis](PROJECT_ANALYSIS.md): Comprehensive analysis of architecture, implementation, and product features
 - [AI Integration Features](docs/AI_INTEGRATION_FEATURES.md): ✨ **NEW** - Detailed guide to contextualized AI tutoring and content generation
 - [MCP Protocol](docs/mcp.md): Details about the Model Context Protocol
 - [Product Requirements](docs/prd.md): Original requirements document
 - [SDK Documentation](docs/sdk.md): Client SDK usage
-- [Architecture](ARCHITECTURE.md): Detailed technical architecture documentation
 
 ## Contributing
 
