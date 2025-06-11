@@ -18,6 +18,14 @@ A comprehensive Model Context Protocol (MCP) server for educational AI tutoring 
 
 TutorX-MCP is an adaptive, multi-modal, and collaborative AI tutoring platform that leverages the Model Context Protocol (MCP) for tool integration and Gradio for user-friendly interfaces. It provides a range of educational features accessible via both MCP clients and a dedicated web interface.
 
+## Hackathon Submission
+
+This project is submitted under Track 3: Agentic Demo Showcase.
+
+Tag: agent-demo-track
+
+Video Overview: [Link to video overview of the app explaining the usage of the application](https://youtu.be/N2cgzMhZyks)
+
 ## Additional Documentation
 
 Beyond this README, the TutorX project is accompanied by a suite of detailed documentation files, each offering deeper insights into specific aspects of the platform. 

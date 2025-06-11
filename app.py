@@ -1947,23 +1947,7 @@ def create_gradio_interface():
 
                         with gr.Column():
                             session_output = gr.JSON(label="Session Status")
-
-                    # Record Learning Events
-                    with gr.Row():
-                        with gr.Column():
-                            event_session_id = gr.Textbox(label="Session ID", placeholder="Enter session ID from above")
-                            event_type = gr.Dropdown(
-                                choices=["answer_submitted", "hint_used", "session_pause", "session_resume"],
-                                value="answer_submitted",
-                                label="Event Type"
-                            )
-                            event_correct = gr.Checkbox(label="Answer Correct", value=True)
-                            event_time = gr.Number(label="Time Taken (seconds)", value=30)
-                            record_event_btn = gr.Button("Record Event")
-
-                        with gr.Column():
-                            event_output = gr.JSON(label="Event Response")
-
+                            
                 # Learning Path Optimization
                 with gr.Accordion("🛤️ Learning Path Optimization", open=True):
                     with gr.Row():
