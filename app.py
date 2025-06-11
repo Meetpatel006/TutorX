@@ -1998,13 +1998,6 @@ def create_gradio_interface():
                     inputs=[session_student_id, session_concept_id, session_difficulty],
                     outputs=[session_output]
                 )
-
-                record_event_btn.click(
-                    fn=sync_record_learning_event,
-                    inputs=[session_student_id, session_concept_id, event_type, event_session_id, event_correct, event_time],
-                    outputs=[event_output]
-                )
-
                 optimize_path_btn.click(
                     fn=sync_get_adaptive_learning_path,
                     inputs=[opt_student_id, opt_concepts, opt_strategy, opt_max_concepts],
